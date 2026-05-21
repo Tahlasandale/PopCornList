@@ -1,25 +1,32 @@
+import 'package:uuid/uuid.dart';
+
 class LocalMovie {
-  final int tmdbId;
+  String id;
+  int tmdbId;
   final String title;
-  final String? posterPath;
+  String? posterPath;
   String status;
   String notes;
   final DateTime addedDate;
-  final double tmdbRating;
-  final List<String> actors;
+  double tmdbRating;
+  List<String> actors;
 
   LocalMovie({
-    required this.tmdbId,
+    String? id,
+    this.tmdbId = 0,
     required this.title,
     this.posterPath,
     required this.status,
     this.notes = '',
     DateTime? addedDate,
     this.tmdbRating = 0,
-    this.actors = const [],
-  }) : addedDate = addedDate ?? DateTime.now();
+    List<String>? actors,
+  })  : id = id ?? const Uuid().v4(),
+        addedDate = addedDate ?? DateTime.now(),
+        actors = actors ?? [];
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'tmdbId': tmdbId,
         'title': title,
         'posterPath': posterPath,
@@ -31,12 +38,13 @@ class LocalMovie {
       };
 
   factory LocalMovie.fromJson(Map<String, dynamic> json) => LocalMovie(
-        tmdbId: json['tmdbId'],
-        title: json['title'],
+        id: json['id'] ?? const Uuid().v4(),
+        tmdbId: (json['tmdbId'] ?? 0).toInt(),
+        title: json['title'] ?? '',
         posterPath: json['posterPath'],
-        status: json['status'],
+        status: json['status'] ?? '',
         notes: json['notes'] ?? '',
-        addedDate: DateTime.parse(json['addedDate']),
+        addedDate: DateTime.tryParse(json['addedDate'] ?? ''),
         tmdbRating: (json['tmdbRating'] ?? 0).toDouble(),
         actors: List<String>.from(json['actors'] ?? []),
       );

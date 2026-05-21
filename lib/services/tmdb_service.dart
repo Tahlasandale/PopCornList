@@ -29,4 +29,21 @@ class TmdbService {
         .map((e) => e['name'] as String)
         .toList();
   }
+
+  Future<Map<String, dynamic>> getMovieWithCredits(int id) async {
+    final response = await _dio.get('/movie/$id', queryParameters: {'append_to_response': 'credits'});
+    final data = response.data;
+    final actors = (data['credits']['cast'] as List?)
+            ?.take(5)
+            .map((e) => e['name'] as String)
+            .toList() ??
+        [];
+    return {
+      'id': data['id'],
+      'title': data['title'] ?? '',
+      'poster_path': data['poster_path'],
+      'vote_average': (data['vote_average'] ?? 0).toDouble(),
+      'actors': actors,
+    };
+  }
 }

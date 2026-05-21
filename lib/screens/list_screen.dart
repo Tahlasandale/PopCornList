@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/database_service.dart';
 import '../models/tmdb_movie.dart';
-import '../services/tmdb_service.dart';
 import '../services/film_filter.dart';
 import '../widgets/movie_card.dart';
 import '../widgets/empty_state.dart';
@@ -22,7 +21,6 @@ class ListScreen extends StatefulWidget {
 
 class _ListScreenState extends State<ListScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final TmdbService _tmdbService = TmdbService();
   List<TmdbMovie> _movies = [];
   List<String> _selectedActors = [];
   bool _isLoading = true;
@@ -54,37 +52,18 @@ class _ListScreenState extends State<ListScreen> {
   Future<void> _loadMovies() async {
     setState(() => _isLoading = true);
     final localMovies = DatabaseService.getByStatus(widget.status);
-    final tmdbMovies = <TmdbMovie>[];
 
-    for (final local in localMovies) {
-      TmdbMovie movie;
-      try {
-        movie = await _tmdbService.getMovieDetails(local.tmdbId);
-      } catch (_) {
-        movie = TmdbMovie(
-          id: local.tmdbId,
-          title: local.title,
-          posterPath: local.posterPath,
-          overview: '',
-          voteAverage: local.tmdbRating,
-          releaseDate: '',
-          genreIds: [],
-          actors: local.actors,
-        );
-      }
-      tmdbMovies.add(TmdbMovie(
-        id: movie.id,
-        title: movie.title,
-        posterPath: movie.posterPath,
-        overview: movie.overview,
-        voteAverage: movie.voteAverage,
-        releaseDate: movie.releaseDate,
-        genreIds: movie.genreIds,
-        actors: local.actors.isNotEmpty ? local.actors : movie.actors,
-        runtime: movie.runtime,
-        addedDate: local.addedDate,
-      ));
-    }
+    final tmdbMovies = localMovies.map((local) => TmdbMovie(
+      id: local.tmdbId,
+      title: local.title,
+      posterPath: local.posterPath,
+      overview: '',
+      voteAverage: local.tmdbRating,
+      releaseDate: '',
+      genreIds: [],
+      actors: local.actors,
+      addedDate: local.addedDate,
+    )).toList();
 
     if (mounted) {
       setState(() {

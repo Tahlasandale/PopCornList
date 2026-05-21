@@ -10,11 +10,13 @@ class ImportResult {
   final int imported;
   final int skipped;
   final int errors;
+  final int unresolved;
 
   const ImportResult({
     required this.imported,
     required this.skipped,
     required this.errors,
+    this.unresolved = 0,
   });
 }
 
@@ -61,6 +63,7 @@ class CsvService {
     int imported = 0;
     int skipped = 0;
     int errors = 0;
+    int unresolved = 0;
 
     final decoder = CsvDecoder();
     final rows = decoder.convert(content);
@@ -74,17 +77,23 @@ class CsvService {
       }
       try {
         final tmdbId = row[0] is int ? row[0] as int : int.tryParse(row[0].toString());
-        if (tmdbId == null) {
+        final title = row[1].toString().trim();
+        if (title.isEmpty) {
           errors++;
           continue;
         }
-        if (DatabaseService.exists(tmdbId)) {
+
+        if (tmdbId != null && tmdbId > 0 && DatabaseService.exists(tmdbId)) {
           skipped++;
           continue;
         }
+
+        final resolvedTmdbId = (tmdbId != null && tmdbId > 0) ? tmdbId : 0;
+        if (resolvedTmdbId == 0) unresolved++;
+
         await DatabaseService.addMovie(LocalMovie(
-          tmdbId: tmdbId,
-          title: row[1].toString(),
+          tmdbId: resolvedTmdbId,
+          title: title,
           posterPath: row[2].toString().isNotEmpty ? row[2].toString() : null,
           status: row[3].toString(),
           notes: row[4].toString(),
@@ -98,7 +107,7 @@ class CsvService {
       }
     }
 
-    return ImportResult(imported: imported, skipped: skipped, errors: errors);
+    return ImportResult(imported: imported, skipped: skipped, errors: errors, unresolved: unresolved);
   }
 
   static Future<PlatformFile?> pickCsvFile() async {

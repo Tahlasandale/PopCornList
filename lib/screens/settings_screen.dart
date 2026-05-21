@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../models/local_movie.dart';
 import '../services/database_service.dart';
 import '../services/csv_service.dart';
+import '../services/tmdb_service.dart';
+import '../services/movie_resolver.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,8 +18,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _toWatchCount = 0;
   int _watchedCount = 0;
+  List<LocalMovie> _unresolvedMovies = [];
   bool _isExporting = false;
   bool _isImporting = false;
+  bool _isResolving = false;
+  int _resolveProgress = 0;
+  int _resolveTotal = 0;
+  String _resolveTitle = '';
 
   @override
   void initState() {
@@ -24,9 +33,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _refreshStats() {
+    final unresolved = DatabaseService.getUnresolved();
     setState(() {
       _toWatchCount = DatabaseService.getByStatus('to_watch').length;
       _watchedCount = DatabaseService.getByStatus('watched').length;
+      _unresolvedMovies = unresolved;
     });
   }
 
@@ -55,7 +66,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       final bytes = file.bytes ?? File(file.path!).readAsBytesSync();
-      final content = String.fromCharCodes(bytes);
+      String content;
+      try {
+        content = utf8.decode(bytes);
+      } catch (_) {
+        content = latin1.decode(bytes);
+      }
+      if (content.isNotEmpty && content.codeUnitAt(0) == 0xFEFF) {
+        content = content.substring(1);
+      }
       final result = await CsvService.importCsv(content);
       _refreshStats();
 
@@ -70,6 +89,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }
+
+      if (result.unresolved > 0) {
+        await _resolveAll();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +102,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _isImporting = false);
     }
+  }
+
+  Future<void> _resolveAll() async {
+    setState(() {
+      _isResolving = true;
+      _resolveProgress = 0;
+    });
+
+    final resolver = MovieResolverService(TmdbService());
+    final resolved = await resolver.resolveAll(
+      onProgress: (done, total, title) {
+        if (mounted) {
+          setState(() {
+            _resolveProgress = done;
+            _resolveTotal = total;
+            _resolveTitle = title;
+          });
+        }
+      },
+    );
+
+    _refreshStats();
+
+    if (mounted) {
+      setState(() => _isResolving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            resolved > 0
+                ? '✅ $resolved film(s) synchronisé(s) avec TMDB'
+                : 'Aucun film trouvé sur TMDB',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _dismissUnresolved(LocalMovie movie) async {
+    await DatabaseService.removeById(movie.id);
+    _refreshStats();
   }
 
   @override
@@ -100,7 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 4),
-                  const Text('v1.0.0', style: TextStyle(color: ticket, fontSize: 13)),
+                  const Text('v1.1.0', style: TextStyle(color: ticket, fontSize: 13)),
                 ],
               ),
             ),
@@ -119,6 +182,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          if (_isResolving) ...[
+            const SizedBox(height: 16),
+            Card(
+              color: projecteur,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Synchronisation avec TMDB... ($_resolveProgress/$_resolveTotal)',
+                      style: const TextStyle(fontSize: 13, color: ticket),
+                    ),
+                    if (_resolveTitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Film en cours : $_resolveTitle',
+                        style: const TextStyle(fontSize: 12, color: ticket),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (_unresolvedMovies.isNotEmpty && !_isResolving) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline, size: 18, color: popcorn),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_unresolvedMovies.length} film(s) non identifié(s)',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ecran),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Cochez pour retirer de la liste',
+                      style: TextStyle(fontSize: 12, color: ticket),
+                    ),
+                    const Divider(),
+                    ..._unresolvedMovies.map((movie) => CheckboxListTile(
+                          dense: true,
+                          value: false,
+                          onChanged: (_) => _dismissUnresolved(movie),
+                          title: Text(movie.title, style: const TextStyle(fontSize: 14, color: ecran)),
+                          subtitle: Text(
+                            movie.status == 'to_watch' ? 'À regarder' : 'Vu',
+                            style: TextStyle(fontSize: 12, color: movie.status == 'to_watch' ? popcorn : siege),
+                          ),
+                          activeColor: siege,
+                          controlAffinity: ListTileControlAffinity.trailing,
+                        )),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _resolveAll,
+                        icon: const Icon(Icons.sync, size: 18),
+                        label: const Text('Tout résoudre via TMDB'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _isExporting ? null : _exportCsv,
