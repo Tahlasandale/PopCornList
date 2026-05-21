@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/tmdb_movie.dart';
 
 class MovieCard extends StatelessWidget {
@@ -28,22 +29,22 @@ class MovieCard extends StatelessWidget {
                     movie.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ecran),
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      const Icon(Icons.star, size: 14, color: popcorn),
                       const SizedBox(width: 2),
                       Text(
                         movie.voteAverage.toStringAsFixed(1),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: ticket),
                       ),
                       if (movie.year.isNotEmpty) ...[
                         const SizedBox(width: 6),
                         Text(
                           movie.year,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(fontSize: 12, color: ticket),
                         ),
                       ],
                     ],
@@ -76,8 +77,8 @@ class MovieCard extends StatelessWidget {
 
   Widget _placeholder() {
     return Container(
-      color: Colors.grey[900],
-      child: const Center(child: Icon(Icons.movie_outlined, size: 40, color: Colors.grey)),
+      color: projecteur,
+      child: const Center(child: Icon(Icons.movie_outlined, size: 40, color: ticket)),
     );
   }
 }

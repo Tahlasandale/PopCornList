@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../services/database_service.dart';
 import '../services/csv_service.dart';
 
@@ -92,15 +93,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  const Icon(Icons.movie, size: 48, color: popcorn),
+                  const SizedBox(height: 8),
                   Text(
                     'PopCornList',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'v1.0.0',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                  ),
+                  const Text('v1.0.0', style: TextStyle(color: ticket, fontSize: 13)),
                 ],
               ),
             ),
@@ -112,9 +112,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _StatColumn(label: 'À regarder', count: _toWatchCount, icon: Icons.bookmark_border),
-                  _StatColumn(label: 'Vus', count: _watchedCount, icon: Icons.check_circle_outline),
-                  _StatColumn(label: 'Total', count: _toWatchCount + _watchedCount, icon: Icons.movie_outlined),
+                  _StatColumn(label: 'À regarder', count: _toWatchCount, icon: Icons.bookmark_border, color: popcorn),
+                  _StatColumn(label: 'Vus', count: _watchedCount, icon: Icons.check_circle_outline, color: siege),
+                  _StatColumn(label: 'Total', count: _toWatchCount + _watchedCount, icon: Icons.movie_outlined, color: ticket),
                 ],
               ),
             ),
@@ -128,7 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: const Text('Exporter en CSV'),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonalIcon(
+          OutlinedButton.icon(
             onPressed: _isImporting ? null : _importCsv,
             icon: _isImporting
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
@@ -145,17 +145,18 @@ class _StatColumn extends StatelessWidget {
   final String label;
   final int count;
   final IconData icon;
+  final Color color;
 
-  const _StatColumn({required this.label, required this.count, required this.icon});
+  const _StatColumn({required this.label, required this.count, required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.grey[400], size: 28),
+        Icon(icon, color: color, size: 28),
         const SizedBox(height: 8),
         Text('$count', style: Theme.of(context).textTheme.headlineMedium),
-        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        Text(label, style: const TextStyle(color: ticket, fontSize: 13)),
       ],
     );
   }

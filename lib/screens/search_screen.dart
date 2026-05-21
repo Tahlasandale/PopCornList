@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/tmdb_movie.dart';
 import '../services/tmdb_service.dart';
 import '../services/film_filter.dart';
+import '../config/theme.dart';
 import '../widgets/movie_grid.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_bar.dart';
+import '../widgets/actor_filter.dart';
 import 'movie_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TmdbService _tmdbService = TmdbService();
   final TextEditingController _searchController = TextEditingController();
   List<TmdbMovie> _results = [];
+  List<String> _selectedActors = [];
   bool _isLoading = false;
   Timer? _debounce;
 
@@ -65,7 +68,31 @@ class _SearchScreenState extends State<SearchScreen> {
       movies: _results,
       sortBy: _sortBy,
       ascending: _ascending,
+      selectedActors: _selectedActors,
     );
+  }
+
+  List<String> get _allActors {
+    return _results
+        .expand((m) => m.actors)
+        .toSet()
+        .where((a) => a.isNotEmpty)
+        .toList()
+      ..sort();
+  }
+
+  Future<void> _openActorFilter() async {
+    final result = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ActorFilterSheet(
+        allActors: _allActors,
+        selectedActors: _selectedActors,
+      ),
+    );
+    if (result != null) {
+      setState(() => _selectedActors = result);
+    }
   }
 
   void _openDetail(TmdbMovie movie) {
@@ -78,40 +105,84 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final hasResults = _results.isNotEmpty;
+    final hasActorFilter = _selectedActors.isNotEmpty;
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'Rechercher un film...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un film...',
+                hintStyle: const TextStyle(color: ticket),
+                prefixIcon: const Icon(Icons.search, color: ticket),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: ticket),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: projecteur,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
             ),
           ),
-        ),
-        if (hasResults)
-          SortBar(
-            currentSort: _sortBy,
-            ascending: _ascending,
-            onSortChanged: (v) => setState(() => _sortBy = v),
-            onOrderChanged: () => setState(() => _ascending = !_ascending),
+        if (hasResults) ...[
+          Row(
+            children: [
+              Expanded(child: SortBar(
+                currentSort: _sortBy,
+                ascending: _ascending,
+                onSortChanged: (v) => setState(() => _sortBy = v),
+                onOrderChanged: () => setState(() => _ascending = !_ascending),
+              )),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  icon: Badge(
+                    isLabelVisible: hasActorFilter,
+                    label: Text('${_selectedActors.length}'),
+                    child: const Icon(Icons.person_search),
+                  ),
+                  onPressed: _openActorFilter,
+                  tooltip: 'Filtrer par acteur',
+                ),
+              ),
+            ],
           ),
+          if (hasActorFilter)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                height: 32,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: _selectedActors
+                      .map((a) => Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Chip(
+                              label: Text(a, style: const TextStyle(fontSize: 12)),
+                              deleteIcon: const Icon(Icons.close, size: 14),
+                              onDeleted: () {
+                                setState(() => _selectedActors.remove(a));
+                              },
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ),
+        ],
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())

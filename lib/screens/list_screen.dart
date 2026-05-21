@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../services/database_service.dart';
 import '../models/tmdb_movie.dart';
 import '../services/tmdb_service.dart';
@@ -129,10 +130,21 @@ class _ListScreenState extends State<ListScreen> {
   Widget build(BuildContext context) {
     final hasMovies = _movies.isNotEmpty;
     final hasActorFilter = _selectedActors.isNotEmpty;
+    final accent = widget.status == 'to_watch' ? popcorn : siege;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Row(
+          children: [
+            Icon(
+              widget.status == 'to_watch' ? Icons.bookmark : Icons.check_circle,
+              color: accent,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(widget.title),
+          ],
+        ),
         actions: [
           if (hasMovies)
             IconButton(
@@ -156,7 +168,8 @@ class _ListScreenState extends State<ListScreen> {
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: 'Rechercher par titre...',
-                  prefixIcon: const Icon(Icons.filter_list),
+                  hintStyle: const TextStyle(color: ticket),
+                  prefixIcon: const Icon(Icons.filter_list, color: ticket),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear),
@@ -168,6 +181,7 @@ class _ListScreenState extends State<ListScreen> {
                       : null,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   filled: true,
+                  fillColor: projecteur,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   isDense: true,
                 ),
@@ -184,8 +198,9 @@ class _ListScreenState extends State<ListScreen> {
                         .map((a) => Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: Chip(
-                                label: Text(a, style: const TextStyle(fontSize: 12)),
-                                deleteIcon: const Icon(Icons.close, size: 14),
+                                label: Text(a, style: const TextStyle(fontSize: 12, color: ecran)),
+                                backgroundColor: accent.withValues(alpha: 0.15),
+                                deleteIcon: Icon(Icons.close, size: 14, color: accent),
                                 onDeleted: () {
                                   setState(() => _selectedActors.remove(a));
                                 },

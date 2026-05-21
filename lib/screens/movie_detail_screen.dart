@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/tmdb_movie.dart';
 import '../models/local_movie.dart';
 import '../services/tmdb_service.dart';
@@ -101,7 +102,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         actions: [
           if (_currentStatus != null)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline, color: siege),
               onPressed: () => _toggleStatus(_currentStatus!),
               tooltip: 'Retirer des listes',
             ),
@@ -141,19 +142,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   width: 120,
                   height: 180,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 120,
-                    height: 180,
-                    color: Colors.grey[900],
-                    child: const Icon(Icons.movie_outlined, color: Colors.grey),
-                  ),
+                  errorBuilder: (_, _, _) => _posterPlaceholder(),
                 )
-              : Container(
-                  width: 120,
-                  height: 180,
-                  color: Colors.grey[900],
-                  child: const Icon(Icons.movie_outlined, color: Colors.grey),
-                ),
+              : _posterPlaceholder(),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -162,20 +153,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             children: [
               Text(
                 movie.title,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: ecran),
               ),
               if (movie.year.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(movie.year, style: TextStyle(color: Colors.grey[400], fontSize: 16)),
+                Text(movie.year, style: const TextStyle(color: ticket, fontSize: 16)),
               ],
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const Icon(Icons.star, color: popcorn, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     movie.voteAverage.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 18, color: ecran),
                   ),
                 ],
               ),
@@ -183,6 +174,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _posterPlaceholder() {
+    return Container(
+      width: 120,
+      height: 180,
+      color: projecteur,
+      child: const Center(child: Icon(Icons.movie_outlined, color: ticket)),
     );
   }
 
@@ -194,6 +194,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             icon: Icons.bookmark,
             label: 'À regarder',
             isActive: _currentStatus == 'to_watch',
+            activeColor: popcorn,
             onTap: () => _toggleStatus('to_watch'),
           ),
         ),
@@ -203,6 +204,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             icon: Icons.check_circle,
             label: 'Vus',
             isActive: _currentStatus == 'watched',
+            activeColor: siege,
             onTap: () => _toggleStatus('watched'),
           ),
         ),
@@ -214,11 +216,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Synopsis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Synopsis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ecran)),
         const SizedBox(height: 8),
         Text(
           movie.overview.isNotEmpty ? movie.overview : 'Aucun synopsis disponible.',
-          style: TextStyle(color: Colors.grey[300], height: 1.5),
+          style: const TextStyle(color: ticket, height: 1.5),
         ),
       ],
     );
@@ -229,14 +231,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Acteurs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Acteurs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ecran)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 4,
           children: _actors
               .map((actor) => Chip(
-                    label: Text(actor, style: const TextStyle(fontSize: 13)),
+                    label: Text(actor, style: const TextStyle(fontSize: 13, color: ecran)),
+                    backgroundColor: projecteur,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ))
               .toList(),
@@ -249,18 +252,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Notes personnelles', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Notes personnelles', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ecran)),
         const SizedBox(height: 8),
         TextField(
           controller: _notesController,
           maxLines: 4,
           enabled: _currentStatus != null,
+          style: const TextStyle(color: ecran),
           decoration: InputDecoration(
             hintText: _currentStatus == null
                 ? 'Ajoutez d\'abord le film à une liste'
                 : 'Écrivez votre note ici...',
+            hintStyle: const TextStyle(color: ticket),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
+            fillColor: projecteur,
           ),
         ),
         const SizedBox(height: 8),
@@ -281,12 +287,14 @@ class _StatusButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
+  final Color activeColor;
   final VoidCallback onTap;
 
   const _StatusButton({
     required this.icon,
     required this.label,
     required this.isActive,
+    required this.activeColor,
     required this.onTap,
   });
 
@@ -297,11 +305,8 @@ class _StatusButton extends StatelessWidget {
       icon: Icon(isActive ? icon : Icons.add),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        backgroundColor: isActive ? Theme.of(context).colorScheme.primaryContainer : null,
-        foregroundColor: isActive ? Theme.of(context).colorScheme.onPrimaryContainer : null,
-        side: isActive
-            ? BorderSide(color: Theme.of(context).colorScheme.primary)
-            : null,
+        foregroundColor: isActive ? activeColor : null,
+        side: isActive ? BorderSide(color: activeColor) : null,
         padding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );

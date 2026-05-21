@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class ActorFilterSheet extends StatefulWidget {
   final List<String> allActors;
@@ -66,7 +67,7 @@ class _ActorFilterSheetState extends State<ActorFilterSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[600],
+                  color: ticket,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -100,10 +101,7 @@ class _ActorFilterSheetState extends State<ActorFilterSheet> {
               Expanded(
                 child: uniqueActors.isEmpty
                     ? Center(
-                        child: Text(
-                          'Aucun acteur trouvé',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
+                        child: Text('Aucun acteur trouvé', style: TextStyle(color: ticket)),
                       )
                     : ListView(
                         controller: scrollController,
@@ -114,6 +112,8 @@ class _ActorFilterSheetState extends State<ActorFilterSheet> {
                                   onChanged: (_) => _toggleActor(actor),
                                   dense: true,
                                   controlAffinity: ListTileControlAffinity.leading,
+                                  activeColor: popcorn,
+                                  checkColor: onyx,
                                 ))
                             .toList(),
                       ),
