@@ -9,6 +9,8 @@ class TmdbMovie {
   final String releaseDate;
   final List<int> genreIds;
   final List<String> actors;
+  final int? runtime;
+  final DateTime? addedDate;
 
   TmdbMovie({
     required this.id,
@@ -19,6 +21,8 @@ class TmdbMovie {
     required this.releaseDate,
     required this.genreIds,
     this.actors = const [],
+    this.runtime,
+    this.addedDate,
   });
 
   factory TmdbMovie.fromJson(Map<String, dynamic> json) {
@@ -30,6 +34,7 @@ class TmdbMovie {
       voteAverage: (json['vote_average'] ?? 0).toDouble(),
       releaseDate: json['release_date'] ?? '',
       genreIds: List<int>.from(json['genre_ids'] ?? []),
+      runtime: json['runtime'],
     );
   }
 

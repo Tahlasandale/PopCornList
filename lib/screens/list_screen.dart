@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import '../models/tmdb_movie.dart';
 import '../services/tmdb_service.dart';
+import '../services/film_filter.dart';
 import '../widgets/movie_card.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/sort_bar.dart';
 import '../widgets/actor_filter.dart';
 import 'movie_detail_screen.dart';
 
@@ -18,11 +20,14 @@ class ListScreen extends StatefulWidget {
 }
 
 class _ListScreenState extends State<ListScreen> {
-  final TextEditingController _actorController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final TmdbService _tmdbService = TmdbService();
   List<TmdbMovie> _movies = [];
-  List<TmdbMovie> _filtered = [];
-  bool _isLoading = false;
+  List<String> _selectedActors = [];
+  bool _isLoading = true;
+
+  SortBy _sortBy = SortBy.addedDate;
+  bool _ascending = false;
 
   @override
   void initState() {
@@ -32,21 +37,30 @@ class _ListScreenState extends State<ListScreen> {
 
   @override
   void dispose() {
-    _actorController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<String> get _allActors {
+    return _movies
+        .expand((m) => m.actors)
+        .toSet()
+        .where((a) => a.isNotEmpty)
+        .toList()
+      ..sort();
   }
 
   Future<void> _loadMovies() async {
     setState(() => _isLoading = true);
     final localMovies = DatabaseService.getByStatus(widget.status);
-
     final tmdbMovies = <TmdbMovie>[];
+
     for (final local in localMovies) {
+      TmdbMovie movie;
       try {
-        final movie = await _tmdbService.getMovieDetails(local.tmdbId);
-        tmdbMovies.add(movie);
+        movie = await _tmdbService.getMovieDetails(local.tmdbId);
       } catch (_) {
-        tmdbMovies.add(TmdbMovie(
+        movie = TmdbMovie(
           id: local.tmdbId,
           title: local.title,
           posterPath: local.posterPath,
@@ -55,32 +69,52 @@ class _ListScreenState extends State<ListScreen> {
           releaseDate: '',
           genreIds: [],
           actors: local.actors,
-        ));
+        );
       }
+      tmdbMovies.add(TmdbMovie(
+        id: movie.id,
+        title: movie.title,
+        posterPath: movie.posterPath,
+        overview: movie.overview,
+        voteAverage: movie.voteAverage,
+        releaseDate: movie.releaseDate,
+        genreIds: movie.genreIds,
+        actors: local.actors.isNotEmpty ? local.actors : movie.actors,
+        runtime: movie.runtime,
+        addedDate: local.addedDate,
+      ));
     }
 
     if (mounted) {
       setState(() {
         _movies = tmdbMovies;
-        _filtered = tmdbMovies;
         _isLoading = false;
-        _applyFilter();
       });
     }
   }
 
-  void _applyFilter() {
-    final query = _actorController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _filtered = List.from(_movies);
-      } else {
-        _filtered = _movies.where((m) {
-          final local = DatabaseService.get(m.id);
-          return local?.actors.any((a) => a.toLowerCase().contains(query)) ?? false;
-        }).toList();
-      }
-    });
+  List<TmdbMovie> get _filtered {
+    return FilmFilter.apply(
+      movies: _movies,
+      sortBy: _sortBy,
+      ascending: _ascending,
+      titleFilter: _searchController.text,
+      selectedActors: _selectedActors,
+    );
+  }
+
+  Future<void> _openActorFilter() async {
+    final result = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ActorFilterSheet(
+        allActors: _allActors,
+        selectedActors: _selectedActors,
+      ),
+    );
+    if (result != null) {
+      setState(() => _selectedActors = result);
+    }
   }
 
   void _openDetail(TmdbMovie movie) async {
@@ -93,14 +127,84 @@ class _ListScreenState extends State<ListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasMovies = _movies.isNotEmpty;
+    final hasActorFilter = _selectedActors.isNotEmpty;
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          if (hasMovies)
+            IconButton(
+              icon: Badge(
+                isLabelVisible: hasActorFilter,
+                label: Text('${_selectedActors.length}'),
+                child: const Icon(Icons.person_search),
+              ),
+              onPressed: _openActorFilter,
+              tooltip: 'Filtrer par acteur',
+            ),
+        ],
+      ),
       body: Column(
         children: [
-          ActorFilter(
-            controller: _actorController,
-            onChanged: _applyFilter,
-          ),
+          if (hasMovies) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher par titre...',
+                  prefixIcon: const Icon(Icons.filter_list),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
+                ),
+              ),
+            ),
+            if (hasActorFilter)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: SizedBox(
+                  height: 32,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: _selectedActors
+                        .map((a) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Chip(
+                                label: Text(a, style: const TextStyle(fontSize: 12)),
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                onDeleted: () {
+                                  setState(() => _selectedActors.remove(a));
+                                },
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ),
+            SortBar(
+              currentSort: _sortBy,
+              ascending: _ascending,
+              onSortChanged: (v) => setState(() => _sortBy = v),
+              onOrderChanged: () => setState(() => _ascending = !_ascending),
+              showAddedDate: true,
+            ),
+          ],
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -110,11 +214,13 @@ class _ListScreenState extends State<ListScreen> {
                             ? Icons.bookmark_border
                             : Icons.check_circle_outline,
                         title: 'Aucun film',
-                        subtitle: _actorController.text.isNotEmpty
-                            ? 'Aucun film avec cet acteur'
-                            : widget.status == 'to_watch'
-                                ? 'Ajoutez des films depuis la recherche'
-                                : 'Marquez des films comme "Vus"',
+                        subtitle: _searchController.text.isNotEmpty
+                            ? 'Aucun film avec ce titre'
+                            : hasActorFilter
+                                ? 'Aucun film avec cet(te) acteur(trice)'
+                                : widget.status == 'to_watch'
+                                    ? 'Ajoutez des films depuis la recherche'
+                                    : 'Marquez des films comme "Vus"',
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(8),

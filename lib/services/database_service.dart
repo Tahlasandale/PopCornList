@@ -26,6 +26,12 @@ class DatabaseService {
     return LocalMovie.fromJson(Map<String, dynamic>.from(data));
   }
 
+  static List<LocalMovie> getAll() {
+    return _box.values
+        .map((e) => LocalMovie.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
   static bool exists(int tmdbId) {
     return _box.containsKey(tmdbId.toString());
   }

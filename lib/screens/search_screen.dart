@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/tmdb_movie.dart';
 import '../services/tmdb_service.dart';
+import '../services/film_filter.dart';
 import '../widgets/movie_grid.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/sort_bar.dart';
 import 'movie_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -19,6 +21,9 @@ class _SearchScreenState extends State<SearchScreen> {
   List<TmdbMovie> _results = [];
   bool _isLoading = false;
   Timer? _debounce;
+
+  SortBy _sortBy = SortBy.rating;
+  bool _ascending = false;
 
   @override
   void dispose() {
@@ -40,7 +45,6 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
-
     setState(() => _isLoading = true);
     try {
       final results = await _tmdbService.searchMovies(query);
@@ -56,6 +60,14 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  List<TmdbMovie> get _filtered {
+    return FilmFilter.apply(
+      movies: _results,
+      sortBy: _sortBy,
+      ascending: _ascending,
+    );
+  }
+
   void _openDetail(TmdbMovie movie) {
     Navigator.push(
       context,
@@ -65,10 +77,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasResults = _results.isNotEmpty;
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 48, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
           child: TextField(
             controller: _searchController,
             onChanged: _onSearchChanged,
@@ -91,16 +105,23 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         ),
+        if (hasResults)
+          SortBar(
+            currentSort: _sortBy,
+            ascending: _ascending,
+            onSortChanged: (v) => setState(() => _sortBy = v),
+            onOrderChanged: () => setState(() => _ascending = !_ascending),
+          ),
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _results.isEmpty
-                  ? const EmptyState(
+              : hasResults
+                  ? MovieGrid(movies: _filtered, onMovieTap: _openDetail)
+                  : const EmptyState(
                       icon: Icons.movie_filter_outlined,
                       title: 'Recherchez un film',
                       subtitle: 'Tapez le titre d\'un film pour commencer',
-                    )
-                  : MovieGrid(movies: _results, onMovieTap: _openDetail),
+                    ),
         ),
       ],
     );

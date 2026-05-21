@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'search_screen.dart';
 import 'list_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,8 +15,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = const [
     SearchScreen(),
-    ListScreen(status: 'to_watch', title: 'À regarder'),
-    ListScreen(status: 'watched', title: 'Vus'),
+    ListScreen(key: ValueKey('to_watch'), status: 'to_watch', title: 'À regarder'),
+    ListScreen(key: ValueKey('watched'), status: 'watched', title: 'Vus'),
+    SettingsScreen(),
   ];
 
   @override
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.search), label: 'Recherche'),
           NavigationDestination(icon: Icon(Icons.bookmark_border), label: 'À regarder'),
           NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Vus'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Paramètres'),
         ],
       ),
     );
