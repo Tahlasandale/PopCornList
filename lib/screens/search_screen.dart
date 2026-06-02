@@ -8,6 +8,7 @@ import '../widgets/movie_grid.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_bar.dart';
 import '../widgets/actor_filter.dart';
+import '../screens/ai_recommendation_screen.dart';
 import 'movie_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -109,32 +110,57 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return Column(
       children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Rechercher un film...',
-                hintStyle: const TextStyle(color: ticket),
-                prefixIcon: const Icon(Icons.search, color: ticket),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: ticket),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: projecteur,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher un film...',
+                    hintStyle: const TextStyle(color: ticket),
+                    prefixIcon: const Icon(Icons.search, color: ticket),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: ticket),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onSearchChanged('');
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: projecteur,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: popcorn.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.auto_awesome, color: popcorn),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AiRecommendationScreen(),
+                    ),
+                  ),
+                  tooltip: 'Recommandations IA',
+                ),
+              ),
+            ],
           ),
+        ),
         if (hasResults) ...[
           Row(
             children: [

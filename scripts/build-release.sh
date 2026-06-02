@@ -27,8 +27,13 @@ if [ -z "${TMDB_API_KEY:-}" ]; then
   exit 1
 fi
 
+if [ -z "${MISTRAL_API_KEY:-}" ]; then
+  echo "⚠️  MISTRAL_API_KEY non défini — recommendations IA désactivées dans le build."
+fi
+
 echo "🔨 Build release APK..."
 echo "   TMDB_API_KEY: ${TMDB_API_KEY:0:8}... (${#TMDB_API_KEY} chars)"
+echo "   MISTRAL_API_KEY: ${MISTRAL_API_KEY:0:8}... (${#MISTRAL_API_KEY} chars)"
 
 export PATH="$HOME/development/flutter/bin:$PATH"
 export ANDROID_HOME="$HOME/development/android-sdk"
@@ -36,6 +41,7 @@ export ANDROID_SDK_ROOT="$HOME/development/android-sdk"
 
 flutter build apk --release \
   --dart-define="TMDB_API_KEY=$TMDB_API_KEY" \
+  --dart-define="MISTRAL_API_KEY=$MISTRAL_API_KEY" \
   "$@"
 
 echo ""

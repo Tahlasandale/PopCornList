@@ -1,15 +1,18 @@
 # Todo
 
-## 🔴 P0 — Bug
-- [ ] **Doublons/suppressions** : `DatabaseService.get(tmdbId)` ne break pas au premier match → retourne le dernier doublon. `CsvService.importCsv()` n'a pas de détection par titre pour les films avec `tmdbId=0` → imports multiples créent des doublons silencieux.
-- [ ] **Release APK Android buggée** : les versions release sur GitHub plantent à l'installation sur Android. Vérifier le signing, le target SDK, le versionCode, la compatibilité Android 14+.
+## ✅ P0 — Bug (Corrigés)
 
-## 🟡 P1 — Sécurité & Configuration
-- [ ] **Externaliser les clés API** : la clé TMDB (`lib/config/api_config.dart`) est actuellement en dur dans le code. Utiliser `flutter_dotenv` ou un fichier `.env` pour ne pas exposer les secrets sur GitHub.
-- [ ] **Sécuriser la clé Mistral AI** : la clé de l'API Mistral utilisée par le moteur de recommandation (P7) ne doit pas être en clair dans le code. Idem, passer par `.env` / `flutter_dotenv` ou une config chargée au runtime.
+- [x] **Doublons CSV** : `CsvService.importCsv()` — fallback titre normalisé ajouté. Plus aucun doublon silencieux pour les films sans `tmdbId`. (`e3ec76a`)
+- [x] **Release APK Android buggée** : keystore dédié « PopCornList » créé, signing release corrigé, ProGuard activé. APK signée (v1+v2+v3) valide 25 ans. (`1b62322`)
 
-## 🟡 P2 — Landing page responsive (site vitrine)
-- [ ] **Rendre `index.html` responsive mobile** : le site de présentation du projet (landing page) doit s'adapter aux écrans mobiles (meta viewport, media queries, flex layout au lieu de fixed widths).
+## ✅ P1 — Sécurité & Configuration
+
+- [x] **Clé TMDB externalisée** : retirée d'`api_config.dart`, injectée via `--dart-define-from-file=.env`. Script `build-release.sh` créé. (`477577f`)
+- [x] **Clé Mistral AI externalisée** : idem TMDB, dans `ApiConfig.mistralApiKey` via `String.fromEnvironment`, chargée depuis `.env` et `.env.example`. Assertion dans `main.dart`.
+
+## ✅ P2 — Landing page responsive (site vitrine)
+
+- [x] **`index.html` responsive mobile** : menu hamburger coulissant, grilles adaptatives, ASCII art réduit, breakpoints 900/640/400px. (`4ad5be4`)
 
 ## 🟡 P3 — Tri multi-critères
 - [ ] Permettre le tri selon plusieurs critères (ex: note + titre) dans `FilmFilter.apply()`, `SortBy`, `SortBar`
@@ -44,25 +47,22 @@
 ## 🔵 P6 — Catégories
 - [ ] À définir : catégories utilisateur ? tags libres ? grouping par genre ?
 
-## 🔵 P7 — Recommandations IA (Mistral)
-- [ ] **Moteur de recommandation** :
-  - Basé sur Mistral AI (une seule requête par recommandation — pas de chat multi-tours)
-  - L'utilisateur renseigne : **humeur** (ex: "j'ai envie de rire", "soirée flippante", "feel-good"), **durée max** (minutes), **genre(s)** souhaité(s)
-  - Mistral reçoit en contexte la liste complète des films de l'utilisateur (titre, durée, genre, note perso, synopsis) + les critères saisis
-  - Mistral retourne une sélection de 1 à 3 films de **la liste personnelle** avec une courte justification personnalisée pour chaque
-- [ ] **UI « Aide-moi à choisir »** :
-  - Nouveau bouton/floating action "🎬 Choisir pour moi" sur l'écran d'accueil
-  - Bottom sheet ou écran dédié avec :
-    - Un champ texte pour l'humeur (libre)
-    - Un slider ou input pour la durée max
-    - Un sélecteur de genres (multi-select, depuis les genres disponibles dans la liste)
-    - Un bouton "Proposer"
-  - Résultat : carte(s) de film avec la justification Mistral et un bouton "Voir la fiche"
-- [ ] **Gestion des erreurs** :
-  - Timeout Mistral → message explicite, pas de crash
-  - Si la liste est vide → dire "Ajoute déjà des films !"
-  - Fallback si Mistral est injoignable → suggestion aléatoire depuis la liste
-- [ ] **Configuration** : clé Mistral sécurisée via `.env` (cf. P1)
+## ✅ P7 — Recommandations IA (Mistral)
+
+- [x] **Moteur de recommandation** (`lib/services/mistral_service.dart`) :
+  - Basé sur Mistral AI (API `/chat/completions`, modèle `mistral-small-latest`)
+  - L'utilisateur renseigne : **humeur** (texte libre), **durée max** (slider 30-240 min), **genre(s)** (multi-select parmi 18 genres TMDB)
+  - Mistral reçoit la liste complète des films (titre, note, statut, acteurs) + les critères
+  - Retourne 1 à 3 films de **la liste personnelle** avec justification personnalisée
+- [x] **UI « Aide-moi à choisir »** (`lib/screens/ai_recommendation_screen.dart`) :
+  - Bouton ✨ IA ajouté **à côté du champ de recherche** dans `SearchScreen`
+  - Écran dédié avec : champ humeur, slider durée, chips genres multi-select, bouton "🎬 Proposer"
+  - Résultat : cartes jolies avec poster, note, statut, justification Mistral dans une bulle, et bouton **"Voir la fiche"** → `MovieDetailScreen`
+- [x] **Gestion des erreurs** :
+  - Timeout / erreur réseau → fallback aléatoire avec message explicite
+  - Liste vide → message "Ajoute déjà des films !"
+  - Pas de clé Mistral → fallback aléatoire silencieux
+- [x] **Configuration** : clé sécurisée via `.env` / `--dart-define-from-file` (P1)
 
 ## ⚪ P8 — Build Web + Docker (secondaire)
 - [ ] **Adapter `main.dart`** : wrapper plateforme pour Hive

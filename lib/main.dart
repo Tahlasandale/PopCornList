@@ -12,6 +12,9 @@ void main() async {
     '  flutter run --dart-define-from-file=.env\n'
     'Voir .env.example pour la configuration.',
   );
+  if (ApiConfig.mistralApiKey.isEmpty) {
+    debugPrint('⚠️  Clé Mistral non configurée — recommendations IA désactivées.');
+  }
 
   await Hive.initFlutter();
   await Hive.openBox('movies');
