@@ -46,3 +46,6 @@ app.*.map.json
 
 # Android build outputs
 android/build/
+
+# Environment / secrets
+.env
