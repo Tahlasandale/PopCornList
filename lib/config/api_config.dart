@@ -14,10 +14,8 @@ class ApiConfig {
   /// Injectée via --dart-define=MISTRAL_API_KEY=xxx (build release)
   /// ou --dart-define-from-file=.env.
   /// Optionnelle — nécessaire seulement pour les recommandations IA (P7).
-  static const String mistralApiKey = String.fromEnvironment(
-    'MISTRAL_API_KEY',
-    defaultValue: '',
-  );
+  /// Clé API Mistral — intégrée directement à la compilation.
+  static const String mistralApiKey = 'D0uyIwRS0HhaGUM1bnWJgvEmWf0ZjgjH';
 
   static String imageUrl(String? path) {
     if (path == null) return '';
