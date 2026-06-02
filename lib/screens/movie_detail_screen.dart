@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/tmdb_movie.dart';
-import '../models/local_movie.dart';
+import '../models/stored_media.dart';
 import '../services/tmdb_service.dart';
 import '../services/database_service.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final TmdbMovie movie;
+  final bool isSerie;
 
-  const MovieDetailScreen({super.key, required this.movie});
+  const MovieDetailScreen({super.key, required this.movie, this.isSerie = false});
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -18,6 +19,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   final TmdbService _tmdbService = TmdbService();
   final TextEditingController _notesController = TextEditingController();
   TmdbMovie? _fullMovie;
+  int? _numberOfSeasons;
+  int? _numberOfEpisodes;
   List<String> _actors = [];
   String? _currentStatus;
   bool _isLoading = true;
@@ -36,18 +39,46 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   Future<void> _loadData() async {
     try {
-      final details = await _tmdbService.getMovieDetails(widget.movie.id);
-      final actors = await _tmdbService.getMovieActors(widget.movie.id);
-      final local = DatabaseService.get(widget.movie.id);
+      if (widget.isSerie) {
+        final serie = await _tmdbService.getSerieDetails(widget.movie.id);
+        final actors = await _tmdbService.getSerieActors(widget.movie.id);
+        final local = DatabaseService.get(widget.movie.id);
 
-      if (mounted) {
-        setState(() {
-          _fullMovie = details;
-          _actors = actors;
-          _currentStatus = local?.status;
-          _notesController.text = local?.notes ?? '';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _fullMovie = TmdbMovie(
+              id: serie.id,
+              title: serie.title,
+              posterPath: serie.posterPath,
+              overview: serie.overview,
+              voteAverage: serie.voteAverage,
+              releaseDate: serie.releaseDate,
+              genreIds: serie.genreIds,
+              actors: serie.actors,
+              runtime: serie.numberOfEpisodes,
+            );
+            _numberOfSeasons = serie.numberOfSeasons;
+            _numberOfEpisodes = serie.numberOfEpisodes;
+            _actors = actors;
+            _currentStatus = local?.status;
+            _notesController.text = local?.notes ?? '';
+            _isLoading = false;
+          });
+        }
+      } else {
+        final details = await _tmdbService.getMovieDetails(widget.movie.id);
+        final actors = await _tmdbService.getMovieActors(widget.movie.id);
+        final local = DatabaseService.get(widget.movie.id);
+
+        if (mounted) {
+          setState(() {
+            _fullMovie = details;
+            _actors = actors;
+            _currentStatus = local?.status;
+            _notesController.text = local?.notes ?? '';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -61,20 +92,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   Future<void> _toggleStatus(String status) async {
     if (_currentStatus == status) {
-      await DatabaseService.removeMovie(widget.movie.id);
+      await DatabaseService.removeMedia(widget.movie.id);
       setState(() => _currentStatus = null);
     } else {
       final exists = DatabaseService.exists(widget.movie.id);
       if (exists) {
         await DatabaseService.updateStatus(widget.movie.id, status);
       } else {
-        await DatabaseService.addMovie(LocalMovie(
+        await DatabaseService.addMedia(StoredMedia(
           tmdbId: widget.movie.id,
           title: widget.movie.title,
           posterPath: widget.movie.posterPath,
           status: status,
           tmdbRating: widget.movie.voteAverage,
           actors: _actors,
+          type: widget.isSerie ? MediaType.series : MediaType.movie,
         ));
       }
       setState(() => _currentStatus = status);
@@ -136,15 +168,39 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: movie.posterUrl != null
-              ? Image.network(
-                  movie.posterUrl!,
-                  width: 120,
-                  height: 180,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _posterPlaceholder(),
-                )
-              : _posterPlaceholder(),
+          child: Stack(
+            children: [
+              movie.posterUrl != null
+                  ? Image.network(
+                      movie.posterUrl!,
+                      width: 120,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _posterPlaceholder(),
+                    )
+                  : _posterPlaceholder(),
+              if (widget.isSerie)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: popcorn,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'SÉRIE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: onyx,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -158,6 +214,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               if (movie.year.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(movie.year, style: const TextStyle(color: ticket, fontSize: 16)),
+              ],
+              if (widget.isSerie && _numberOfSeasons != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '$_numberOfSeasons saison${_numberOfSeasons! > 1 ? "s" : ""} · $_numberOfEpisodes épisodes',
+                  style: const TextStyle(color: ticket, fontSize: 14),
+                ),
+              ],
+              if (!widget.isSerie && movie.runtime != null && movie.runtime! > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${movie.runtime} min',
+                  style: const TextStyle(color: ticket, fontSize: 14),
+                ),
               ],
               const SizedBox(height: 8),
               Row(
@@ -182,7 +252,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       width: 120,
       height: 180,
       color: projecteur,
-      child: const Center(child: Icon(Icons.movie_outlined, color: ticket)),
+      child: const Center(
+        child: Icon(
+          Icons.movie_outlined,
+          color: ticket,
+        ),
+      ),
     );
   }
 
@@ -261,7 +336,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           style: const TextStyle(color: ecran),
           decoration: InputDecoration(
             hintText: _currentStatus == null
-                ? 'Ajoutez d\'abord le film à une liste'
+                ? 'Ajoutez d\'abord à une liste'
                 : 'Écrivez votre note ici...',
             hintStyle: const TextStyle(color: ticket),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

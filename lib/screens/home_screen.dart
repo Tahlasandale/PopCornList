@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'search_screen.dart';
 import 'list_screen.dart';
 import 'settings_screen.dart';
+import 'serie_screen.dart';
+import '../models/stored_media.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,11 +15,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
+  final List<Widget> _screens = [
     SearchScreen(),
-    ListScreen(key: ValueKey('to_watch'), status: 'to_watch', title: 'À regarder'),
-    ListScreen(key: ValueKey('watched'), status: 'watched', title: 'Vus'),
+    ListScreen(key: ValueKey('to_watch'), status: 'to_watch', title: 'À regarder', mediaType: MediaType.movie),
+    ListScreen(key: ValueKey('watched'), status: 'watched', title: 'Vus', mediaType: MediaType.movie),
     SettingsScreen(),
+    SerieScreen(),
   ];
 
   @override
@@ -34,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.bookmark_border), label: 'À regarder'),
           NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Vus'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Paramètres'),
+          NavigationDestination(icon: Icon(Icons.live_tv), label: 'Séries'),
         ],
       ),
     );

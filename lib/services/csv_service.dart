@@ -3,7 +3,7 @@ import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import '../models/local_movie.dart';
+import '../models/stored_media.dart';
 import 'database_service.dart';
 
 class ImportResult {
@@ -67,8 +67,9 @@ class CsvService {
     return value;
   }
 
-  static String _buildCsvRow(LocalMovie m) {
+  static String _buildCsvRow(StoredMedia m) {
     return [
+      m.type.name,
       m.tmdbId,
       _escapeCsv(m.title),
       m.posterPath ?? '',
@@ -83,13 +84,19 @@ class CsvService {
 
   static String exportAll() {
     final buffer = StringBuffer();
-    buffer.writeln('tmdbId,title,posterPath,status,notes,addedDate,tmdbRating,actors,genreIds');
+    buffer.writeln('type,tmdbId,title,posterPath,status,notes,addedDate,tmdbRating,actors,genreIds');
 
     final all = DatabaseService.getAll();
     for (final m in all) {
       buffer.writeln(_buildCsvRow(m));
     }
     return buffer.toString();
+  }
+
+  static MediaType _parseMediaType(dynamic raw) {
+    final str = raw.toString().trim().toLowerCase();
+    if (str == 'series') return MediaType.series;
+    return MediaType.movie; // tout ce qui n'est pas 'series' → movie
   }
 
   static Future<ImportResult> importCsv(String content) async {
@@ -99,23 +106,39 @@ class CsvService {
     int unresolved = 0;
 
     // Lookup des titres normalisés existants (fallback dedup quand tmdbId == 0)
-    // Mis à jour pendant l'import pour éviter les doublons intra-CSV.
     final existingTitles =
         DatabaseService.getAll().map((m) => _normalizeTitle(m.title)).toSet();
 
     final decoder = CsvDecoder();
     final rows = decoder.convert(content);
 
+    if (rows.isEmpty) {
+      return const ImportResult(imported: 0, skipped: 0, errors: 0);
+    }
+
+    // ── Détection du format ─────────────────────────────────────────
+    // Nouveau format : l'en-tête commence par "type"
+    // Ancien format : l'en-tête commence par "tmdbId" (ou n'importe quoi d'autre)
+    final headerRaw = rows[0].isNotEmpty ? rows[0][0].toString().trim().toLowerCase() : '';
+    final isNewFormat = headerRaw == 'type';
+    // offset = décalage d'indice dû à la colonne 'type' en position 0
+    final int c = isNewFormat ? 1 : 0;
+
     for (int i = 0; i < rows.length; i++) {
-      if (i == 0) continue;
+      if (i == 0) continue; // skip header
       final row = rows[i];
-      if (row.length < 8) {
+      final minCols = isNewFormat ? 9 : 8;
+      if (row.length < minCols) {
         errors++;
         continue;
       }
       try {
-        final tmdbId = row[0] is int ? row[0] as int : int.tryParse(row[0].toString());
-        final title = row[1].toString().trim();
+        // Type : dans le nouveau format c'est la colonne 0
+        final mediaType = isNewFormat ? _parseMediaType(row[0]) : MediaType.movie;
+
+        final tmdbIdRaw = row[0 + c];
+        final tmdbId = tmdbIdRaw is int ? tmdbIdRaw : int.tryParse(tmdbIdRaw.toString());
+        final title = row[1 + c].toString().trim();
         if (title.isEmpty) {
           errors++;
           continue;
@@ -139,16 +162,26 @@ class CsvService {
         final resolvedTmdbId = (tmdbId != null && tmdbId > 0) ? tmdbId : 0;
         if (resolvedTmdbId == 0) unresolved++;
 
-        await DatabaseService.addMovie(LocalMovie(
+        // Colonnes optionnelles : genreIds (colonne 8+c en nouveau, 8 en ancien)
+        List<int> genreIds;
+        final genreCol = 8 + c;
+        if (row.length > genreCol) {
+          genreIds = _decodeIntList(row[genreCol].toString());
+        } else {
+          genreIds = [];
+        }
+
+        await DatabaseService.addMedia(StoredMedia(
+          type: mediaType,
           tmdbId: resolvedTmdbId,
           title: title,
-          posterPath: row[2].toString().isNotEmpty ? row[2].toString() : null,
-          status: row[3].toString(),
-          notes: row[4].toString(),
-          addedDate: DateTime.tryParse(row[5].toString()) ?? DateTime.now(),
-          tmdbRating: double.tryParse(row[6].toString()) ?? 0,
-          actors: _decodeList(row[7].toString()),
-          genreIds: row.length >= 9 ? _decodeIntList(row[8].toString()) : [],
+          posterPath: row[2 + c].toString().isNotEmpty ? row[2 + c].toString() : null,
+          status: row[3 + c].toString(),
+          notes: row[4 + c].toString(),
+          addedDate: DateTime.tryParse(row[5 + c].toString()) ?? DateTime.now(),
+          tmdbRating: double.tryParse(row[6 + c].toString()) ?? 0,
+          actors: _decodeList(row[7 + c].toString()),
+          genreIds: genreIds,
         ));
         existingTitles.add(_normalizeTitle(title));
         imported++;

@@ -5,8 +5,9 @@ import '../models/tmdb_movie.dart';
 class MovieCard extends StatelessWidget {
   final TmdbMovie movie;
   final VoidCallback onTap;
+  final bool isSerie;
 
-  const MovieCard({super.key, required this.movie, required this.onTap});
+  const MovieCard({super.key, required this.movie, required this.onTap, this.isSerie = false});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +19,31 @@ class MovieCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _buildPoster(),
+              child: Stack(
+                children: [
+                  _buildPoster(),
+                  if (isSerie)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: popcorn,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'SÉRIE',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: onyx,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(6),

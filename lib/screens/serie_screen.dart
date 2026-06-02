@@ -11,20 +11,20 @@ import '../widgets/actor_filter.dart';
 import '../widgets/genre_filter.dart';
 import 'movie_detail_screen.dart';
 
-class ListScreen extends StatefulWidget {
-  final String status;
-  final String title;
-  final MediaType? mediaType;
+/// Options de filtre pour l'écran Séries.
+enum SeriesFilter { toWatch, watched, all }
 
-  const ListScreen({super.key, required this.status, required this.title, this.mediaType});
+class SerieScreen extends StatefulWidget {
+  const SerieScreen({super.key});
 
   @override
-  State<ListScreen> createState() => _ListScreenState();
+  State<SerieScreen> createState() => _SerieScreenState();
 }
 
-class _ListScreenState extends State<ListScreen> {
+class _SerieScreenState extends State<SerieScreen> {
+  SeriesFilter _filter = SeriesFilter.toWatch;
   final TextEditingController _searchController = TextEditingController();
-  List<TmdbMovie> _movies = [];
+  List<TmdbMovie> _series = [];
   List<String> _selectedActors = [];
   List<int> _selectedGenres = [];
   bool _isLoading = true;
@@ -34,7 +34,7 @@ class _ListScreenState extends State<ListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMovies();
+    _loadSeries();
   }
 
   @override
@@ -44,7 +44,7 @@ class _ListScreenState extends State<ListScreen> {
   }
 
   List<String> get _allActors {
-    return _movies
+    return _series
         .expand((m) => m.actors)
         .toSet()
         .where((a) => a.isNotEmpty)
@@ -52,11 +52,19 @@ class _ListScreenState extends State<ListScreen> {
       ..sort();
   }
 
-  Future<void> _loadMovies() async {
+  Future<void> _loadSeries() async {
     setState(() => _isLoading = true);
-    final localMovies = DatabaseService.getByStatus(widget.status, type: widget.mediaType);
 
-    final tmdbMovies = localMovies.map((local) => TmdbMovie(
+    final List<StoredMedia> localSeries;
+    if (_filter == SeriesFilter.all) {
+      localSeries = DatabaseService.getAll(type: MediaType.series);
+      localSeries.sort((a, b) => b.addedDate.compareTo(a.addedDate));
+    } else {
+      final status = _filter == SeriesFilter.toWatch ? 'to_watch' : 'watched';
+      localSeries = DatabaseService.getByStatus(status, type: MediaType.series);
+    }
+
+    final tmdbSeries = localSeries.map((local) => TmdbMovie(
       id: local.tmdbId,
       title: local.title,
       posterPath: local.posterPath,
@@ -70,7 +78,7 @@ class _ListScreenState extends State<ListScreen> {
 
     if (mounted) {
       setState(() {
-        _movies = tmdbMovies;
+        _series = tmdbSeries;
         _isLoading = false;
       });
     }
@@ -78,7 +86,7 @@ class _ListScreenState extends State<ListScreen> {
 
   List<TmdbMovie> get _filtered {
     return FilmFilter.apply(
-      movies: _movies,
+      movies: _series,
       criteria: _sortCriteria,
       titleFilter: _searchController.text,
       selectedActors: _selectedActors,
@@ -116,40 +124,41 @@ class _ListScreenState extends State<ListScreen> {
   void _openDetail(TmdbMovie movie) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie, isSerie: true)),
     );
-    _loadMovies();
+    _loadSeries();
   }
+
+  // String get _statusForCurrentFilter {
+  //   if (_filter == SeriesFilter.all) return '';
+  //   return _filter == SeriesFilter.toWatch ? 'to_watch' : 'watched';
+  // }
 
   @override
   Widget build(BuildContext context) {
-    final hasMovies = _movies.isNotEmpty;
+    final hasSeries = _series.isNotEmpty;
     final hasActorFilter = _selectedActors.isNotEmpty;
     final hasGenreFilter = _selectedGenres.isNotEmpty;
     final hasAnyFilter = hasActorFilter || hasGenreFilter;
-    final accent = widget.status == 'to_watch' ? popcorn : siege;
+    final accent = _filter == SeriesFilter.watched ? siege : popcorn;
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
+        title: const Row(
           children: [
-            Icon(
-              widget.status == 'to_watch' ? Icons.bookmark : Icons.check_circle,
-              color: accent,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(widget.title),
+            Icon(Icons.live_tv, color: popcorn, size: 20),
+            SizedBox(width: 8),
+            Text('Séries'),
           ],
         ),
         actions: [
-          if (hasMovies)
+          if (hasSeries)
             IconButton(
               icon: Icon(Icons.category, color: hasGenreFilter ? popcorn : null),
               onPressed: _openGenreFilter,
               tooltip: 'Filtrer par genre',
             ),
-          if (hasMovies)
+          if (hasSeries)
             IconButton(
               icon: Badge(
                 isLabelVisible: hasActorFilter,
@@ -163,9 +172,34 @@ class _ListScreenState extends State<ListScreen> {
       ),
       body: Column(
         children: [
-          if (hasMovies) ...[
+          // Toggle À regarder / Vus / Tous
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SegmentedButton<SeriesFilter>(
+              segments: const [
+                ButtonSegment(value: SeriesFilter.toWatch, label: Text('À regarder')),
+                ButtonSegment(value: SeriesFilter.watched, label: Text('Vus')),
+                ButtonSegment(value: SeriesFilter.all, label: Text('Tous')),
+              ],
+              selected: {_filter},
+              onSelectionChanged: (newFilter) {
+                setState(() {
+                  _filter = newFilter.first;
+                  _selectedActors = [];
+                  _selectedGenres = [];
+                  _searchController.clear();
+                });
+                _loadSeries();
+              },
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+          if (hasSeries) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
               child: TextField(
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
@@ -243,10 +277,8 @@ class _ListScreenState extends State<ListScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _filtered.isEmpty
                     ? EmptyState(
-                        icon: widget.status == 'to_watch'
-                            ? Icons.bookmark_border
-                            : Icons.check_circle_outline,
-                        title: 'Aucun film',
+                        icon: Icons.live_tv,
+                        title: 'Aucune série',
                         subtitle: _buildEmptySubtitle(),
                       )
                     : GridView.builder(
@@ -273,16 +305,21 @@ class _ListScreenState extends State<ListScreen> {
 
   String _buildEmptySubtitle() {
     if (_searchController.text.isNotEmpty) {
-      return 'Aucun film avec ce titre';
+      return 'Aucune série avec ce titre';
     }
     if (_selectedActors.isNotEmpty) {
-      return 'Aucun film avec cet(te) acteur(trice)';
+      return 'Aucune série avec cet(te) acteur(trice)';
     }
     if (_selectedGenres.isNotEmpty) {
-      return 'Aucun film avec tous ces genres';
+      return 'Aucune série avec tous ces genres';
     }
-    return widget.status == 'to_watch'
-        ? 'Ajoutez des films depuis la recherche'
-        : 'Marquez des films comme "Vus"';
+    switch (_filter) {
+      case SeriesFilter.toWatch:
+        return 'Ajoutez des séries depuis la recherche';
+      case SeriesFilter.watched:
+        return 'Marquez des séries comme "Vues"';
+      case SeriesFilter.all:
+        return 'Aucune série ajoutée';
+    }
   }
 }

@@ -11,6 +11,9 @@ import '../widgets/actor_filter.dart';
 import '../screens/ai_recommendation_screen.dart';
 import 'movie_detail_screen.dart';
 
+/// Mode de recherche : films ou séries.
+enum SearchMode { movies, series }
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -21,6 +24,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TmdbService _tmdbService = TmdbService();
   final TextEditingController _searchController = TextEditingController();
+  SearchMode _searchMode = SearchMode.movies;
   List<TmdbMovie> _results = [];
   List<String> _selectedActors = [];
   bool _isLoading = false;
@@ -50,8 +54,27 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      final results = await _tmdbService.searchMovies(query);
-      if (mounted) setState(() => _results = results);
+      if (_searchMode == SearchMode.movies) {
+        final results = await _tmdbService.searchMovies(query);
+        if (mounted) setState(() => _results = results);
+      } else {
+        final series = await _tmdbService.searchSeries(query);
+        if (mounted) {
+          setState(() {
+            _results = series.map((s) => TmdbMovie(
+              id: s.id,
+              title: s.title,
+              posterPath: s.posterPath,
+              overview: s.overview,
+              voteAverage: s.voteAverage,
+              releaseDate: s.releaseDate,
+              genreIds: s.genreIds,
+              actors: s.actors,
+              runtime: s.numberOfEpisodes,
+            )).toList();
+          });
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,6 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<TmdbMovie> get _filtered {
+    if (_searchMode == SearchMode.series) return _results;
     return FilmFilter.apply(
       movies: _results,
       criteria: _sortCriteria,
@@ -97,69 +121,118 @@ class _SearchScreenState extends State<SearchScreen> {
   void _openDetail(TmdbMovie movie) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+      MaterialPageRoute(
+        builder: (_) => MovieDetailScreen(
+          movie: movie,
+          isSerie: _searchMode == SearchMode.series,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final hasResults = _results.isNotEmpty;
-    final hasActorFilter = _selectedActors.isNotEmpty;
+    final hasActorFilter = _searchMode == SearchMode.movies && _selectedActors.isNotEmpty;
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 48, 16, 4),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher un film...',
-                    hintStyle: const TextStyle(color: ticket),
-                    prefixIcon: const Icon(Icons.search, color: ticket),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: ticket),
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: projecteur,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: popcorn.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.auto_awesome, color: popcorn),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AiRecommendationScreen(),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: _searchMode == SearchMode.movies
+                            ? 'Rechercher un film...'
+                            : 'Rechercher une série...',
+                        hintStyle: const TextStyle(color: ticket),
+                        prefixIcon: const Icon(Icons.search, color: ticket),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: ticket),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: projecteur,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
                     ),
                   ),
-                  tooltip: 'Recommandations IA',
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: popcorn.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.auto_awesome, color: popcorn),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AiRecommendationScreen(),
+                        ),
+                      ),
+                      tooltip: 'Recommandations IA',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<SearchMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: SearchMode.movies,
+                      label: Text('Films'),
+                      icon: Icon(Icons.movie_outlined, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: SearchMode.series,
+                      label: Text('Séries'),
+                      icon: Icon(Icons.live_tv, size: 18),
+                    ),
+                  ],
+                  selected: {_searchMode},
+                  onSelectionChanged: (Set<SearchMode> selected) {
+                    setState(() {
+                      _searchMode = selected.first;
+                      _results = [];
+                      _selectedActors = [];
+                      _searchController.clear();
+                    });
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      return null;
+                    }),
+                    foregroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return const Color(0xFF121214);
+                      }
+                      return const Color(0xFFA0A0A0);
+                    }),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        if (hasResults) ...[
+        if (hasResults && _searchMode == SearchMode.movies) ...[
           Row(
             children: [
               Expanded(child: SortBar(
@@ -209,11 +282,21 @@ class _SearchScreenState extends State<SearchScreen> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : hasResults
-                  ? MovieGrid(movies: _filtered, onMovieTap: _openDetail)
-                  : const EmptyState(
-                      icon: Icons.movie_filter_outlined,
-                      title: 'Recherchez un film',
-                      subtitle: 'Tapez le titre d\'un film pour commencer',
+                  ? MovieGrid(
+                      movies: _filtered,
+                      onMovieTap: _openDetail,
+                      isSerie: _searchMode == SearchMode.series,
+                    )
+                  : EmptyState(
+                      icon: _searchMode == SearchMode.movies
+                          ? Icons.movie_filter_outlined
+                          : Icons.live_tv_outlined,
+                      title: _searchMode == SearchMode.movies
+                          ? 'Recherchez un film'
+                          : 'Recherchez une série',
+                      subtitle: _searchMode == SearchMode.movies
+                          ? "Tapez le titre d'un film pour commencer"
+                          : "Tapez le titre d'une série pour commencer",
                     ),
         ),
       ],

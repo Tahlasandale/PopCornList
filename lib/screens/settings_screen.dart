@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
-import '../models/local_movie.dart';
+import '../models/stored_media.dart';
 import '../services/database_service.dart';
 import '../services/csv_service.dart';
 import '../services/tmdb_service.dart';
@@ -18,7 +18,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _toWatchCount = 0;
   int _watchedCount = 0;
-  List<LocalMovie> _unresolvedMovies = [];
+  List<StoredMedia> _unresolvedMovies = [];
   bool _isExporting = false;
   bool _isImporting = false;
   bool _isResolving = false;
@@ -139,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _dismissUnresolved(LocalMovie movie) async {
+  Future<void> _dismissUnresolved(StoredMedia movie) async {
     await DatabaseService.removeById(movie.id);
     _refreshStats();
   }

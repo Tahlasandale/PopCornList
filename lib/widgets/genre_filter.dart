@@ -23,6 +23,24 @@ const Map<int, String> kMovieGenres = {
   37: 'Western',
 };
 
+/// Liste complète des genres TMDB pour les séries TV.
+const Map<int, String> kSerieGenres = {
+  10759: 'Action & Aventure',
+  16: 'Animation',
+  35: 'Comédie',
+  80: 'Crime',
+  99: 'Documentaire',
+  18: 'Drame',
+  10762: 'Enfants',
+  10763: 'Actualités',
+  10764: 'Réalité',
+  10765: 'Science-Fiction & Fantastique',
+  10766: 'Soap',
+  10767: 'Talk',
+  10768: 'Guerre & Politique',
+  37: 'Western',
+};
+
 class GenreFilterSheet extends StatefulWidget {
   final List<int> selectedGenreIds;
 

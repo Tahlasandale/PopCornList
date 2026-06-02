@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
-import '../models/local_movie.dart';
+import '../models/stored_media.dart';
 
 /// Service de recommandation IA via l'API Mistral.
 ///
@@ -31,14 +31,14 @@ class MistralService {
   /// [mood] : texte libre sur l'humeur/ambiance recherchée
   /// [maxDuration] : durée max souhaitée en minutes
   /// [selectedGenres] : liste des noms de genres sélectionnés (vide = tous)
-  /// [allMovies] : tous les films de l'utilisateur (tous statuts confondus)
+  /// [allMovies] : tous les médias de l'utilisateur (tous statuts confondus)
   ///
   /// Retourne une liste de maps {title, reason}.
   Future<List<Map<String, String>>> getRecommendations({
     required String mood,
     required int maxDuration,
     required List<String> selectedGenres,
-    required List<LocalMovie> allMovies,
+    required List<StoredMedia> allMovies,
   }) async {
     if (!isAvailable) {
       throw Exception(
@@ -56,20 +56,21 @@ class MistralService {
       final i = e.key + 1;
       final m = e.value;
       final status = m.status == 'to_watch' ? 'À regarder' : 'Vus';
+      final typeLabel = m.type == MediaType.series ? 'Série' : 'Film';
       final actors =
           m.actors.isNotEmpty ? m.actors.take(3).join(', ') : 'N/A';
-      return '$i. "${m.title}" — Note: ${m.tmdbRating.toStringAsFixed(1)}/10'
+      return '$i. "$typeLabel: ${m.title}" — Note: ${m.tmdbRating.toStringAsFixed(1)}/10'
           ' — Statut: $status — Acteurs: $actors';
     }).join('\n');
 
     final systemPrompt = '''
 Tu es PopCornMind, un assistant de recommandation de films spécialisé et enthousiaste.
-Tu reçois la liste personnelle de films d'un utilisateur et ses préférences du moment.
+Tu reçois la liste personnelle de films/séries d'un utilisateur et ses préférences du moment.
 
 RÈGLES STRICTES :
-1. Ne propose QUE des films qui figurent DANS SA LISTE — pas de films externes.
-2. Choisis 1 à 3 films maximum.
-3. Pour chaque film, donne UNIQUEMENT le titre exact tel qu'écrit dans la liste.
+1. Ne propose QUE des films/séries qui figurent DANS SA LISTE — pas de contenus externes.
+2. Choisis 1 à 3 films/séries maximum.
+3. Pour chaque recommandation, donne UNIQUEMENT le titre exact tel qu'écrit dans la liste.
 4. La justification doit être personnalisée, chaleureuse et pertinente (2-3 phrases).
 5. Lie chaque recommandation aux critères donnés (humeur, durée, genres).
 
@@ -81,7 +82,7 @@ Format EXACT :
 ''';
 
     final userPrompt = '''
-Voici MA liste de films :
+Voici MA liste de films/séries :
 
 $moviesStr
 
@@ -90,7 +91,7 @@ Mes critères du moment :
 - Durée max souhaitée : $maxDuration minutes
 - Genres souhaités : ${selectedGenres.isEmpty ? 'Tous' : selectedGenres.join(', ')}
 
-Quels films me recommandes-tu parmi MA liste ?
+Quels contenus me recommandes-tu parmi MA liste ?
 ''';
 
     final response = await _dio.post(
@@ -133,14 +134,14 @@ Quels films me recommandes-tu parmi MA liste ?
   }
 
   /// Fallback aléatoire si Mistral est indisponible.
-  /// Retourne au maximum [count] films depuis [movies].
-  static List<LocalMovie> getRandomFallback(
-    List<LocalMovie> movies, {
+  /// Retourne au maximum [count] contenus depuis [mediaList].
+  static List<StoredMedia> getRandomFallback(
+    List<StoredMedia> mediaList, {
     int count = 3,
   }) {
-    if (movies.isEmpty) return [];
+    if (mediaList.isEmpty) return [];
     final random = Random();
-    final shuffled = List<LocalMovie>.from(movies)..shuffle(random);
-    return shuffled.take(min(count, movies.length)).toList();
+    final shuffled = List<StoredMedia>.from(mediaList)..shuffle(random);
+    return shuffled.take(min(count, mediaList.length)).toList();
   }
 }

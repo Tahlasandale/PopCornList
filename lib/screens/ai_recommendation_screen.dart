@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
-import '../models/local_movie.dart';
+import '../models/stored_media.dart';
 import '../models/tmdb_movie.dart';
 import '../services/database_service.dart';
 import '../services/mistral_service.dart';
@@ -32,7 +32,7 @@ class _AiRecommendationScreenState extends State<AiRecommendationScreen> {
   List<_Recommendation> _recommendations = [];
 
   /// Tous les films de l'utilisateur (cache)
-  List<LocalMovie> _allMovies = [];
+  List<StoredMedia> _allMovies = [];
 
   @override
   void initState() {
@@ -93,10 +93,10 @@ class _AiRecommendationScreenState extends State<AiRecommendationScreen> {
         return;
       }
 
-      // Associer chaque titre recommandé au LocalMovie correspondant
+      // Associer chaque titre recommandé au StoredMedia correspondant
       setState(() {
         _recommendations = results.map((r) {
-          final match = _allMovies.cast<LocalMovie?>().firstWhere(
+          final match = _allMovies.cast<StoredMedia?>().firstWhere(
                 (m) => m!.title.trim().toLowerCase() ==
                     r['title']!.trim().toLowerCase(),
                 orElse: () => null,
@@ -144,7 +144,7 @@ class _AiRecommendationScreenState extends State<AiRecommendationScreen> {
     }
   }
 
-  void _openDetail(LocalMovie? movie) {
+  void _openDetail(StoredMedia? movie) {
     if (movie == null) return;
     final tmdb = TmdbMovie(
       id: movie.tmdbId,
@@ -596,7 +596,7 @@ class _AiRecommendationScreenState extends State<AiRecommendationScreen> {
     );
   }
 
-  Widget _buildMovieInfoRow(LocalMovie movie) {
+  Widget _buildMovieInfoRow(StoredMedia movie) {
     return Row(
       children: [
         // Poster
@@ -756,7 +756,7 @@ class _AiRecommendationScreenState extends State<AiRecommendationScreen> {
 
 /// Représente une recommandation individuelle.
 class _Recommendation {
-  final LocalMovie? localMovie;
+  final StoredMedia? localMovie;
   final String? title;
   final String reason;
 
