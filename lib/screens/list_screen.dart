@@ -7,6 +7,7 @@ import '../widgets/movie_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_bar.dart';
 import '../widgets/actor_filter.dart';
+import '../widgets/genre_filter.dart';
 import 'movie_detail_screen.dart';
 
 class ListScreen extends StatefulWidget {
@@ -23,10 +24,10 @@ class _ListScreenState extends State<ListScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<TmdbMovie> _movies = [];
   List<String> _selectedActors = [];
+  List<int> _selectedGenres = [];
   bool _isLoading = true;
 
-  SortBy _sortBy = SortBy.addedDate;
-  bool _ascending = false;
+  List<SortCriteria> _sortCriteria = [const SortCriteria(SortBy.addedDate, false)];
 
   @override
   void initState() {
@@ -60,7 +61,7 @@ class _ListScreenState extends State<ListScreen> {
       overview: '',
       voteAverage: local.tmdbRating,
       releaseDate: '',
-      genreIds: [],
+      genreIds: local.genreIds,
       actors: local.actors,
       addedDate: local.addedDate,
     )).toList();
@@ -76,10 +77,10 @@ class _ListScreenState extends State<ListScreen> {
   List<TmdbMovie> get _filtered {
     return FilmFilter.apply(
       movies: _movies,
-      sortBy: _sortBy,
-      ascending: _ascending,
+      criteria: _sortCriteria,
       titleFilter: _searchController.text,
       selectedActors: _selectedActors,
+      selectedGenres: _selectedGenres,
     );
   }
 
@@ -97,6 +98,19 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
+  Future<void> _openGenreFilter() async {
+    final result = await showModalBottomSheet<List<int>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => GenreFilterSheet(
+        selectedGenreIds: _selectedGenres,
+      ),
+    );
+    if (result != null) {
+      setState(() => _selectedGenres = result);
+    }
+  }
+
   void _openDetail(TmdbMovie movie) async {
     await Navigator.push(
       context,
@@ -109,6 +123,8 @@ class _ListScreenState extends State<ListScreen> {
   Widget build(BuildContext context) {
     final hasMovies = _movies.isNotEmpty;
     final hasActorFilter = _selectedActors.isNotEmpty;
+    final hasGenreFilter = _selectedGenres.isNotEmpty;
+    final hasAnyFilter = hasActorFilter || hasGenreFilter;
     final accent = widget.status == 'to_watch' ? popcorn : siege;
 
     return Scaffold(
@@ -125,6 +141,12 @@ class _ListScreenState extends State<ListScreen> {
           ],
         ),
         actions: [
+          if (hasMovies)
+            IconButton(
+              icon: Icon(Icons.category, color: hasGenreFilter ? popcorn : null),
+              onPressed: _openGenreFilter,
+              tooltip: 'Filtrer par genre',
+            ),
           if (hasMovies)
             IconButton(
               icon: Badge(
@@ -166,15 +188,16 @@ class _ListScreenState extends State<ListScreen> {
                 ),
               ),
             ),
-            if (hasActorFilter)
+            if (hasAnyFilter)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: SizedBox(
                   height: 32,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: _selectedActors
-                        .map((a) => Padding(
+                    children: [
+                      if (hasActorFilter)
+                        ..._selectedActors.map((a) => Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: Chip(
                                 label: Text(a, style: const TextStyle(fontSize: 12, color: ecran)),
@@ -186,17 +209,31 @@ class _ListScreenState extends State<ListScreen> {
                                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 visualDensity: VisualDensity.compact,
                               ),
-                            ))
-                        .toList(),
+                            )),
+                      if (hasGenreFilter)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Chip(
+                            label: Text(
+                              '${_selectedGenres.length} genre${_selectedGenres.length > 1 ? 's' : ''}',
+                              style: const TextStyle(fontSize: 12, color: ecran),
+                            ),
+                            backgroundColor: popcorn.withValues(alpha: 0.15),
+                            deleteIcon: Icon(Icons.close, size: 14, color: popcorn),
+                            onDeleted: () {
+                              setState(() => _selectedGenres.clear());
+                            },
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             SortBar(
-              currentSort: _sortBy,
-              ascending: _ascending,
-              onSortChanged: (v) => setState(() => _sortBy = v),
-              onOrderChanged: () => setState(() => _ascending = !_ascending),
-              showAddedDate: true,
+              currentCriteria: _sortCriteria,
+              onCriteriaChanged: (v) => setState(() => _sortCriteria = v),
             ),
           ],
           Expanded(
@@ -208,13 +245,7 @@ class _ListScreenState extends State<ListScreen> {
                             ? Icons.bookmark_border
                             : Icons.check_circle_outline,
                         title: 'Aucun film',
-                        subtitle: _searchController.text.isNotEmpty
-                            ? 'Aucun film avec ce titre'
-                            : hasActorFilter
-                                ? 'Aucun film avec cet(te) acteur(trice)'
-                                : widget.status == 'to_watch'
-                                    ? 'Ajoutez des films depuis la recherche'
-                                    : 'Marquez des films comme "Vus"',
+                        subtitle: _buildEmptySubtitle(),
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(8),
@@ -236,5 +267,20 @@ class _ListScreenState extends State<ListScreen> {
         ],
       ),
     );
+  }
+
+  String _buildEmptySubtitle() {
+    if (_searchController.text.isNotEmpty) {
+      return 'Aucun film avec ce titre';
+    }
+    if (_selectedActors.isNotEmpty) {
+      return 'Aucun film avec cet(te) acteur(trice)';
+    }
+    if (_selectedGenres.isNotEmpty) {
+      return 'Aucun film avec tous ces genres';
+    }
+    return widget.status == 'to_watch'
+        ? 'Ajoutez des films depuis la recherche'
+        : 'Marquez des films comme "Vus"';
   }
 }

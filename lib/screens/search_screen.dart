@@ -26,8 +26,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   Timer? _debounce;
 
-  SortBy _sortBy = SortBy.rating;
-  bool _ascending = false;
+  List<SortCriteria> _sortCriteria = [const SortCriteria(SortBy.rating, false)];
 
   @override
   void dispose() {
@@ -67,8 +66,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<TmdbMovie> get _filtered {
     return FilmFilter.apply(
       movies: _results,
-      sortBy: _sortBy,
-      ascending: _ascending,
+      criteria: _sortCriteria,
       selectedActors: _selectedActors,
     );
   }
@@ -165,10 +163,8 @@ class _SearchScreenState extends State<SearchScreen> {
           Row(
             children: [
               Expanded(child: SortBar(
-                currentSort: _sortBy,
-                ascending: _ascending,
-                onSortChanged: (v) => setState(() => _sortBy = v),
-                onOrderChanged: () => setState(() => _ascending = !_ascending),
+                currentCriteria: _sortCriteria,
+                onCriteriaChanged: (v) => setState(() => _sortCriteria = v),
               )),
               Padding(
                 padding: const EdgeInsets.only(right: 8),

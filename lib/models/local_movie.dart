@@ -10,6 +10,7 @@ class LocalMovie {
   final DateTime addedDate;
   double tmdbRating;
   List<String> actors;
+  List<int> genreIds;
 
   LocalMovie({
     String? id,
@@ -21,9 +22,11 @@ class LocalMovie {
     DateTime? addedDate,
     this.tmdbRating = 0,
     List<String>? actors,
+    List<int>? genreIds,
   })  : id = id ?? const Uuid().v4(),
         addedDate = addedDate ?? DateTime.now(),
-        actors = actors ?? [];
+        actors = actors ?? [],
+        genreIds = genreIds ?? [];
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -35,6 +38,7 @@ class LocalMovie {
         'addedDate': addedDate.toIso8601String(),
         'tmdbRating': tmdbRating,
         'actors': actors,
+        'genreIds': genreIds,
       };
 
   factory LocalMovie.fromJson(Map<String, dynamic> json) => LocalMovie(
@@ -47,5 +51,6 @@ class LocalMovie {
         addedDate: DateTime.tryParse(json['addedDate'] ?? ''),
         tmdbRating: (json['tmdbRating'] ?? 0).toDouble(),
         actors: List<String>.from(json['actors'] ?? []),
+        genreIds: List<int>.from(json['genreIds'] ?? []),
       );
 }

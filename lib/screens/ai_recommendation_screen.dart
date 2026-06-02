@@ -5,8 +5,8 @@ import '../models/local_movie.dart';
 import '../models/tmdb_movie.dart';
 import '../services/database_service.dart';
 import '../services/mistral_service.dart';
+import '../widgets/genre_filter.dart';
 import 'movie_detail_screen.dart';
-
 /// Écran de recommandation IA.
 ///
 /// L'utilisateur renseigne son humeur, une durée max et des genres,

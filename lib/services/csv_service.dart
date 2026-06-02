@@ -49,6 +49,17 @@ class CsvService {
     return raw.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
+  static String _encodeIntList(List<int> items) => items.join('|');
+
+  static List<int> _decodeIntList(String raw) {
+    if (raw.trim().isEmpty) return [];
+    return raw
+        .split('|')
+        .map((e) => int.tryParse(e.trim()))
+        .whereType<int>()
+        .toList();
+  }
+
   static String _escapeCsv(String value) {
     if (value.contains(',') || value.contains('"') || value.contains('\n')) {
       return '"${value.replaceAll('"', '""')}"';
@@ -66,12 +77,13 @@ class CsvService {
       m.addedDate.toIso8601String(),
       m.tmdbRating.toStringAsFixed(1),
       _encodeList(m.actors),
+      _encodeIntList(m.genreIds),
     ].join(',');
   }
 
   static String exportAll() {
     final buffer = StringBuffer();
-    buffer.writeln('tmdbId,title,posterPath,status,notes,addedDate,tmdbRating,actors');
+    buffer.writeln('tmdbId,title,posterPath,status,notes,addedDate,tmdbRating,actors,genreIds');
 
     final all = DatabaseService.getAll();
     for (final m in all) {
@@ -136,6 +148,7 @@ class CsvService {
           addedDate: DateTime.tryParse(row[5].toString()) ?? DateTime.now(),
           tmdbRating: double.tryParse(row[6].toString()) ?? 0,
           actors: _decodeList(row[7].toString()),
+          genreIds: row.length >= 9 ? _decodeIntList(row[8].toString()) : [],
         ));
         existingTitles.add(_normalizeTitle(title));
         imported++;
