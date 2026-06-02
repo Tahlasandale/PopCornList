@@ -14,13 +14,15 @@
 
 - [x] **`index.html` responsive mobile** : menu hamburger coulissant, grilles adaptatives, ASCII art réduit, breakpoints 900/640/400px. (`4ad5be4`)
 
-## 🟡 P3 — Tri multi-critères
-- [ ] Permettre le tri selon plusieurs critères (ex: note + titre) dans `FilmFilter.apply()`, `SortBy`, `SortBar`
+## ✅ P3 — Tri multi-critères
+- [x] `FilmFilter.apply()` accepte `List<SortCriteria>` (field + ascending)
+- [x] `SortBar` refait en multi-sélection : ordre = priorité, chaque chip toggle ↑/↓/désactivé
+- [x] Intégré dans `ListScreen` et `SearchScreen` (`v1.2.0`)
 
-## 🟡 P4 — Filtre genres (intersection)
-- [ ] Persister les `genreIds` TMDB dans `LocalMovie` (actuellement jetés dans `list_screen.dart`)
-- [ ] Créer un `GenreFilterSheet` (pattern `ActorFilterSheet` mais logique AND)
-- [ ] Si 2 genres sélectionnés → intersection des 2
+## ✅ P4 — Filtre genres (intersection)
+- [x] `genreIds` persisté dans `LocalMovie` (Hive + CSV colonne 9 au pipe `|`)
+- [x] `GenreFilterSheet` créé (recherche + checkboxes, logique AND)
+- [x] Compatibilité ascendante : anciens CSV sans colonne 9 → fallback `[]`
 
 ## 🟡 P5 — Prise en charge des séries TV
 - [ ] **Modèle `LocalSerie`** : créer un modèle Hive pour les séries avec les champs spécifiques TMDB :
