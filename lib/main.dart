@@ -6,12 +6,12 @@ import 'config/api_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  assert(
-    ApiConfig.tmdbApiKey.isNotEmpty,
-    'API TMDB non configurée. Lancer avec :\n'
-    '  flutter run --dart-define-from-file=.env\n'
-    'Voir .env.example pour la configuration.',
-  );
+  if (ApiConfig.tmdbApiKey.isEmpty) {
+    throw FlutterError(
+      'API TMDB non configurée. Voir .env.example.\n'
+      'Build : flutter build apk --dart-define=TMDB_API_KEY=xxx',
+    );
+  }
   if (ApiConfig.mistralApiKey.isEmpty) {
     debugPrint('⚠️  Clé Mistral non configurée — recommendations IA désactivées.');
   }

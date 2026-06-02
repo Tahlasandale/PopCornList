@@ -87,6 +87,7 @@ class CsvService {
     int unresolved = 0;
 
     // Lookup des titres normalisés existants (fallback dedup quand tmdbId == 0)
+    // Mis à jour pendant l'import pour éviter les doublons intra-CSV.
     final existingTitles =
         DatabaseService.getAll().map((m) => _normalizeTitle(m.title)).toSet();
 
@@ -136,6 +137,7 @@ class CsvService {
           tmdbRating: double.tryParse(row[6].toString()) ?? 0,
           actors: _decodeList(row[7].toString()),
         ));
+        existingTitles.add(_normalizeTitle(title));
         imported++;
       } catch (_) {
         errors++;

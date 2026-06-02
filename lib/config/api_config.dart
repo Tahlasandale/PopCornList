@@ -3,12 +3,11 @@ class ApiConfig {
   static const String imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
   /// Clé API TMDB.
-  /// Injectée via --dart-define=TMDB_API_KEY=xxx (build release)
-  /// ou --dart-define-from-file=.env (développement local).
-  /// Voir .env.example pour la configuration.
+  /// Priorité : --dart-define=TMDB_API_KEY=xxx > fallback intégré.
+  /// Pour surcharger : flutter build apk --dart-define=TMDB_API_KEY=xxx
   static const String tmdbApiKey = String.fromEnvironment(
     'TMDB_API_KEY',
-    defaultValue: '',
+    defaultValue: '4d84a0553d5aa1420e3fc54ad30aafb3',
   );
 
   /// Clé API Mistral.
