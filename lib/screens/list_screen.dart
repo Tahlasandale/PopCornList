@@ -286,32 +286,57 @@ class _ListScreenState extends State<ListScreen> {
           ],
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filtered.isEmpty
-                    ? EmptyState(
-                        icon: widget.status == 'to_watch'
-                            ? Icons.bookmark_border
-                            : Icons.check_circle_outline,
-                        title: 'Aucun résultat',
-                        subtitle: _buildEmptySubtitle(),
-                      )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(8),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 0.55,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
+                ? Center(
+                      child: RefreshIndicator(
+                        onRefresh: _loadMovies,
+                        child: ListView(
+                          children: const [
+                            SizedBox(
+                              height: 200,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                          ],
                         ),
-                        itemCount: _filtered.length,
-                        itemBuilder: (context, index) {
-                          return MovieCard(
-                            movie: _filtered[index],
-                            onTap: () => _openDetail(_filtered[index]),
-                          );
-                        },
                       ),
+                    )
+                    : _filtered.isEmpty
+                        ? RefreshIndicator(
+                            onRefresh: _loadMovies,
+                            child: ListView(
+                              children: [
+                                SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.6,
+                                  child: EmptyState(
+                                    icon: widget.status == 'to_watch'
+                                        ? Icons.bookmark_border
+                                        : Icons.check_circle_outline,
+                                    title: 'Aucun résultat',
+                                    subtitle: _buildEmptySubtitle(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _loadMovies,
+                            child: GridView.builder(
+                              padding: const EdgeInsets.all(8),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                childAspectRatio: 0.55,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                              ),
+                              itemCount: _filtered.length,
+                              itemBuilder: (context, index) {
+                                return MovieCard(
+                                  movie: _filtered[index],
+                                  onTap: () => _openDetail(_filtered[index]),
+                                );
+                              },
+                            ),
+                          ),
           ),
         ],
       ),

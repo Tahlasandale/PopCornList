@@ -171,12 +171,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           child: Stack(
             children: [
               movie.posterUrl != null
-                  ? Image.network(
-                      movie.posterUrl!,
-                      width: 120,
-                      height: 180,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _posterPlaceholder(),
+                  ? Hero(
+                      tag: 'poster_${movie.id}',
+                      child: Image.network(
+                        movie.posterUrl!,
+                        width: 120,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _posterPlaceholder(),
+                      ),
                     )
                   : _posterPlaceholder(),
               if (widget.isSerie)

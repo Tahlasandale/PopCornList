@@ -6,17 +6,19 @@ class MovieGrid extends StatelessWidget {
   final List<TmdbMovie> movies;
   final void Function(TmdbMovie movie) onMovieTap;
   final int crossAxisCount;
+  final Future<void> Function()? onRefresh;
 
   const MovieGrid({
     super.key,
     required this.movies,
     required this.onMovieTap,
     this.crossAxisCount = 3,
+    this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
+    final grid = GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
@@ -32,5 +34,13 @@ class MovieGrid extends StatelessWidget {
         );
       },
     );
+
+    if (onRefresh != null) {
+      return RefreshIndicator(
+        onRefresh: onRefresh!,
+        child: grid,
+      );
+    }
+    return grid;
   }
 }

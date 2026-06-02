@@ -85,15 +85,18 @@ class MovieCard extends StatelessWidget {
   Widget _buildPoster() {
     final url = movie.posterUrl;
     if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        errorBuilder: (_, _, _) => _placeholder(),
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        },
+      return Hero(
+        tag: 'poster_${movie.id}',
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, _, _) => _placeholder(),
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          },
+        ),
       );
     }
     return _placeholder();
