@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/theme_notifier.dart';
@@ -66,7 +67,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (mounted) setState(() => _isImporting = false);
         return;
       }
-      final bytes = file.bytes ?? File(file.path!).readAsBytesSync();
+      
+      final List<int> bytes;
+      if (kIsWeb) {
+        bytes = file.bytes!;
+      } else {
+        bytes = await io.File(file.path!).readAsBytes();
+      }
+
       String content;
       try {
         content = utf8.decode(bytes);

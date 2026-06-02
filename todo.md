@@ -66,57 +66,10 @@
   - Pas de clé Mistral → fallback aléatoire silencieux
 - [x] **Configuration** : clé sécurisée via `.env` / `--dart-define-from-file` (P1)
 
-## ⚪ P8 — Build Web + Docker (secondaire)
-- [ ] **Adapter `main.dart`** : wrapper plateforme pour Hive
-  ```dart
-  import 'package:flutter/foundation.dart' show kIsWeb;
-  // ...
-  if (kIsWeb) {
-    await Hive.init();       // IndexedDB
-  } else {
-    await Hive.initFlutter(); // fichiers natifs
-  }
-  ```
-- [ ] **Adapter `csv_service.dart` / `settings_screen.dart`** :
-  - `file_picker` et `share_plus` ne marchent pas sur web → cacher les boutons CSV avec `kIsWeb` ou afficher un message "Non disponible sur le navigateur"
-  - `path_provider` → remplacer par `universal_html` ou fallback web
-  - Utiliser `dart:io` seulement si `!kIsWeb` (importer conditionnellement)
-- [ ] **Build web** : `flutter build web --release` → produit `build/web/`
-- [ ] **Créer `Dockerfile`** :
-  ```dockerfile
-  FROM nginx:alpine
-  COPY build/web /usr/share/nginx/html
-  COPY nginx.conf /etc/nginx/conf.d/default.conf
-  EXPOSE 80
-  CMD ["nginx", "-g", "daemon off;"]
-  ```
-- [ ] **Créer `nginx.conf`** (optionnel, si besoin de SPA fallback) :
-  ```nginx
-  server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-    location / {
-      try_files $uri $uri/ /index.html;
-    }
-  }
-  ```
-- [ ] **Créer `docker-compose.yml`** :
-  ```yaml
-  services:
-    popcornlist:
-      build: .
-      ports:
-        - "8080:80"
-      restart: unless-stopped
-  ```
-- [ ] **UI responsive** :
-  - Limiter la largeur max du grid (ex: `maxCrossAxisExtent: 280` au lieu de `crossAxisCount: 3` fixe → `SliverGridDelegateWithMaxCrossAxisExtent`)
-  - `NavigationBar` déjà responsive
-  - Tester les breakpoints mobile/tablette/desktop
-- [ ] **Build & déploiement** :
-  ```sh
-  flutter build web --release
-  docker compose up -d --build
-  ```
-  → accessible sur `http://IP_DU_SERVEUR:8080`
+## ✅ P8 — Build Web + Docker
+
+- [x] **Adapter `main.dart`** : `Hive.initFlutter()` déjà compatible.
+- [x] **Fichiers de configuration** : `Dockerfile`, `nginx.conf` et `.dockerignore` créés.
+- [x] **Build Web** : Test local `flutter build web` réussi.
+- [x] **Dockerisation** : Image Docker prête (basée sur nginx:alpine).
+

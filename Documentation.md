@@ -62,12 +62,52 @@ La logique de filtrage est centralisée dans `lib/services/film_filter.dart`.
 
 ---
 
-## 🚀 Build et Déploiement
+## 🛠️ Pipeline de Compilation
 
-### Android
-Un script automatisé `scripts/build-release.sh` gère la génération de l'APK de production.
-- **Sécurité** : Utilise ProGuard pour l'obscurcissement du code.
-- **Signature** : Nécessite un fichier `key.properties` et un keystore (non inclus dans le dépôt).
+PopCornList dispose d'un pipeline de compilation automatisé pour deux cibles principales : Android (APK) et Web (Docker).
 
-### Web (Expérimental)
-L'application est structurellement prête pour le Web, bien que certaines fonctionnalités comme le sélecteur de fichiers (`file_picker`) nécessitent des adaptations spécifiques selon la plateforme.
+### 📱 Android (APK Release)
+Le script `./scripts/build-release.sh` automatise la génération de l'APK de production.
+- **Processus** : Charge les clés depuis `.env`, injecte les variables via `--dart-define` et lance `flutter build apk`.
+- **Résultat** : `build/app/outputs/flutter-apk/app-release.apk`.
+- **Usage** :
+  ```bash
+  chmod +x scripts/build-release.sh
+  ./scripts/build-release.sh
+  ```
+
+### 🐳 Docker (Web)
+Le script `./scripts/build-docker.sh` permet de créer une image Docker prête à l'emploi.
+- **Architecture** : Utilise un build multi-étapes (Flutter SDK pour la compilation, Nginx Alpine pour la distribution).
+- **Persistence** : Utilise IndexedDB dans le navigateur de l'utilisateur (via Hive). Aucune configuration de base de données externe n'est requise.
+- **Usage** :
+  ```bash
+  chmod +x scripts/build-docker.sh
+  ./scripts/build-docker.sh
+  ```
+- **Lancement du conteneur** :
+  ```bash
+  docker run -d -p 8080:80 popcornlist:web
+  ```
+  L'application est alors accessible sur `http://localhost:8080`.
+
+---
+
+## 🚀 CI/CD (GitHub Actions)
+
+Voici un exemple de configuration pour un pipeline automatisé sur GitHub Actions (`.github/workflows/main.yml`) :
+
+```yaml
+name: Build PopCornList
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter build apk --release --dart-define=TMDB_API_KEY=${{ secrets.TMDB_KEY }}
+```

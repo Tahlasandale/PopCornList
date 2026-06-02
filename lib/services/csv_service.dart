@@ -1,10 +1,17 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' as io;
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/stored_media.dart';
 import 'database_service.dart';
+
+// Import conditionnel pour le web (pour le téléchargement de fichier)
+import 'dart:convert';
+import 'dart:async';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 class ImportResult {
   final int imported;
@@ -21,8 +28,7 @@ class ImportResult {
 }
 
 class CsvService {
-  /// Normalise un titre pour la comparaison : lowercase, accents → ascii,
-  /// suppression ponctuation, normalisation espaces.
+  /// Normalise un titre pour la comparaison.
   static String _normalizeTitle(String title) {
     const accents = {
       'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
@@ -96,7 +102,7 @@ class CsvService {
   static MediaType _parseMediaType(dynamic raw) {
     final str = raw.toString().trim().toLowerCase();
     if (str == 'series') return MediaType.series;
-    return MediaType.movie; // tout ce qui n'est pas 'series' → movie
+    return MediaType.movie;
   }
 
   static Future<ImportResult> importCsv(String content) async {
@@ -105,7 +111,6 @@ class CsvService {
     int errors = 0;
     int unresolved = 0;
 
-    // Lookup des titres normalisés existants (fallback dedup quand tmdbId == 0)
     final existingTitles =
         DatabaseService.getAll().map((m) => _normalizeTitle(m.title)).toSet();
 
@@ -116,16 +121,12 @@ class CsvService {
       return const ImportResult(imported: 0, skipped: 0, errors: 0);
     }
 
-    // ── Détection du format ─────────────────────────────────────────
-    // Nouveau format : l'en-tête commence par "type"
-    // Ancien format : l'en-tête commence par "tmdbId" (ou n'importe quoi d'autre)
     final headerRaw = rows[0].isNotEmpty ? rows[0][0].toString().trim().toLowerCase() : '';
     final isNewFormat = headerRaw == 'type';
-    // offset = décalage d'indice dû à la colonne 'type' en position 0
     final int c = isNewFormat ? 1 : 0;
 
     for (int i = 0; i < rows.length; i++) {
-      if (i == 0) continue; // skip header
+      if (i == 0) continue;
       final row = rows[i];
       final minCols = isNewFormat ? 9 : 8;
       if (row.length < minCols) {
@@ -133,9 +134,7 @@ class CsvService {
         continue;
       }
       try {
-        // Type : dans le nouveau format c'est la colonne 0
         final mediaType = isNewFormat ? _parseMediaType(row[0]) : MediaType.movie;
-
         final tmdbIdRaw = row[0 + c];
         final tmdbId = tmdbIdRaw is int ? tmdbIdRaw : int.tryParse(tmdbIdRaw.toString());
         final title = row[1 + c].toString().trim();
@@ -144,13 +143,11 @@ class CsvService {
           continue;
         }
 
-        // Vérification par TMDB ID (primaire)
         if (tmdbId != null && tmdbId > 0 && DatabaseService.exists(tmdbId)) {
           skipped++;
           continue;
         }
 
-        // Fallback : vérification par titre normalisé (quand pas de TMDB ID)
         if (tmdbId == null || tmdbId <= 0) {
           final normalized = _normalizeTitle(title);
           if (existingTitles.contains(normalized)) {
@@ -162,7 +159,6 @@ class CsvService {
         final resolvedTmdbId = (tmdbId != null && tmdbId > 0) ? tmdbId : 0;
         if (resolvedTmdbId == 0) unresolved++;
 
-        // Colonnes optionnelles : genreIds (colonne 8+c en nouveau, 8 en ancien)
         List<int> genreIds;
         final genreCol = 8 + c;
         if (row.length > genreCol) {
@@ -197,15 +193,28 @@ class CsvService {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
+      withData: kIsWeb, // Important pour le web
     );
     if (result == null || result.files.isEmpty) return null;
     return result.files.single;
   }
 
   static Future<void> shareCsv(String csvContent) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/PopCornList_export.csv');
-    await file.writeAsString(csvContent);
-    await Share.shareXFiles([XFile(file.path)], text: 'PopCornList - Mes listes de films');
+    if (kIsWeb) {
+      // Sur Web, on télécharge le fichier directement
+      final bytes = utf8.encode(csvContent);
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "PopCornList_export.csv")
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      // Sur Mobile/Desktop, on utilise le partage natif
+      final dir = await getTemporaryDirectory();
+      final file = io.File('${dir.path}/PopCornList_export.csv');
+      await file.writeAsString(csvContent);
+      await Share.shareXFiles([XFile(file.path)], text: 'PopCornList - Mes listes de films');
+    }
   }
 }

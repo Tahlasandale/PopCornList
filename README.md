@@ -44,17 +44,19 @@ L'application utilise des variables d'environnement pour sécuriser les clés AP
 
 ## Build & Lancement
 
-Pour lancer l'application avec les clés API :
-
-```bash
-flutter run --dart-define-from-file=.env
-```
-
+### 📱 Android (APK)
 Pour générer un APK de release :
-
 ```bash
 ./scripts/build-release.sh
 ```
+
+### 🐳 Docker (Web)
+Pour construire et lancer l'application dans un conteneur :
+```bash
+./scripts/build-docker.sh
+docker run -d -p 8080:80 popcornlist:web
+```
+L'application est ensuite accessible sur `http://localhost:8080`.
 
 ## Structure du projet
 

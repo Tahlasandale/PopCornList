@@ -1,0 +1,14 @@
+.dart_tool/
+.git/
+.idea/
+build/
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+screenshots/
+*.apk
+*.jks
+.env
