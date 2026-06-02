@@ -11,6 +11,7 @@ class TmdbMovie {
   final List<String> actors;
   final int? runtime;
   final DateTime? addedDate;
+  final bool isSerie;
 
   TmdbMovie({
     required this.id,
@@ -23,6 +24,7 @@ class TmdbMovie {
     this.actors = const [],
     this.runtime,
     this.addedDate,
+    this.isSerie = false,
   });
 
   factory TmdbMovie.fromJson(Map<String, dynamic> json) {

@@ -6,14 +6,12 @@ class MovieGrid extends StatelessWidget {
   final List<TmdbMovie> movies;
   final void Function(TmdbMovie movie) onMovieTap;
   final int crossAxisCount;
-  final bool isSerie;
 
   const MovieGrid({
     super.key,
     required this.movies,
     required this.onMovieTap,
     this.crossAxisCount = 3,
-    this.isSerie = false,
   });
 
   @override
@@ -31,7 +29,6 @@ class MovieGrid extends StatelessWidget {
         return MovieCard(
           movie: movies[index],
           onTap: () => onMovieTap(movies[index]),
-          isSerie: isSerie,
         );
       },
     );

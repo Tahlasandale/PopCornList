@@ -11,9 +11,6 @@ import '../widgets/actor_filter.dart';
 import '../screens/ai_recommendation_screen.dart';
 import 'movie_detail_screen.dart';
 
-/// Mode de recherche : films ou séries.
-enum SearchMode { movies, series }
-
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -24,7 +21,8 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TmdbService _tmdbService = TmdbService();
   final TextEditingController _searchController = TextEditingController();
-  SearchMode _searchMode = SearchMode.movies;
+  bool _searchFilms = true;
+  bool _searchSeries = true;
   List<TmdbMovie> _results = [];
   List<String> _selectedActors = [];
   bool _isLoading = false;
@@ -54,14 +52,14 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      if (_searchMode == SearchMode.movies) {
-        final results = await _tmdbService.searchMovies(query);
-        if (mounted) setState(() => _results = results);
-      } else {
+      List<TmdbMovie> allResults = [];
+      if (_searchFilms) {
+        final movies = await _tmdbService.searchMovies(query);
+        allResults.addAll(movies);
+      }
+      if (_searchSeries) {
         final series = await _tmdbService.searchSeries(query);
-        if (mounted) {
-          setState(() {
-            _results = series.map((s) => TmdbMovie(
+        allResults.addAll(series.map((s) => TmdbMovie(
               id: s.id,
               title: s.title,
               posterPath: s.posterPath,
@@ -71,10 +69,10 @@ class _SearchScreenState extends State<SearchScreen> {
               genreIds: s.genreIds,
               actors: s.actors,
               runtime: s.numberOfEpisodes,
-            )).toList();
-          });
-        }
+              isSerie: true,
+            )));
       }
+      if (mounted) setState(() => _results = allResults);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +85,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<TmdbMovie> get _filtered {
-    if (_searchMode == SearchMode.series) return _results;
     return FilmFilter.apply(
       movies: _results,
       criteria: _sortCriteria,
@@ -124,7 +121,7 @@ class _SearchScreenState extends State<SearchScreen> {
       MaterialPageRoute(
         builder: (_) => MovieDetailScreen(
           movie: movie,
-          isSerie: _searchMode == SearchMode.series,
+          isSerie: movie.isSerie,
         ),
       ),
     );
@@ -133,7 +130,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final hasResults = _results.isNotEmpty;
-    final hasActorFilter = _searchMode == SearchMode.movies && _selectedActors.isNotEmpty;
+    final hasActorFilter = _selectedActors.isNotEmpty;
 
     return Column(
       children: [
@@ -149,9 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       onChanged: _onSearchChanged,
                       autofocus: true,
                       decoration: InputDecoration(
-                        hintText: _searchMode == SearchMode.movies
-                            ? 'Rechercher un film...'
-                            : 'Rechercher une série...',
+                        hintText: 'Rechercher...',
                         hintStyle: const TextStyle(color: ticket),
                         prefixIcon: const Icon(Icons.search, color: ticket),
                         suffixIcon: _searchController.text.isNotEmpty
@@ -192,50 +187,41 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<SearchMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: SearchMode.movies,
-                      label: Text('Films'),
-                      icon: Icon(Icons.movie_outlined, size: 18),
-                    ),
-                    ButtonSegment(
-                      value: SearchMode.series,
-                      label: Text('Séries'),
-                      icon: Icon(Icons.live_tv, size: 18),
-                    ),
-                  ],
-                  selected: {_searchMode},
-                  onSelectionChanged: (Set<SearchMode> selected) {
-                    setState(() {
-                      _searchMode = selected.first;
-                      _results = [];
-                      _selectedActors = [];
-                      _searchController.clear();
-                    });
-                  },
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      return null;
-                    }),
-                    foregroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return const Color(0xFF121214);
-                      }
-                      return const Color(0xFFA0A0A0);
-                    }),
+              Row(
+                children: [
+                  FilterChip(
+                    label: const Text('Films'),
+                    selected: _searchFilms,
+                    onSelected: (v) {
+                      setState(() {
+                        _searchFilms = v;
+                        _search(_searchController.text);
+                      });
+                    },
+                    avatar: const Icon(Icons.movie_outlined, size: 18),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  FilterChip(
+                    label: const Text('Séries'),
+                    selected: _searchSeries,
+                    onSelected: (v) {
+                      setState(() {
+                        _searchSeries = v;
+                        _search(_searchController.text);
+                      });
+                    },
+                    avatar: const Icon(Icons.live_tv, size: 18),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        if (hasResults && _searchMode == SearchMode.movies) ...[
+        if (hasResults) ...[
           Row(
             children: [
-              Expanded(child: SortBar(
+              Expanded(
+                  child: SortBar(
                 currentCriteria: _sortCriteria,
                 onCriteriaChanged: (v) => setState(() => _sortCriteria = v),
               )),
@@ -264,12 +250,14 @@ class _SearchScreenState extends State<SearchScreen> {
                       .map((a) => Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: Chip(
-                              label: Text(a, style: const TextStyle(fontSize: 12)),
+                              label:
+                                  Text(a, style: const TextStyle(fontSize: 12)),
                               deleteIcon: const Icon(Icons.close, size: 14),
                               onDeleted: () {
                                 setState(() => _selectedActors.remove(a));
                               },
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
                             ),
                           ))
@@ -285,18 +273,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   ? MovieGrid(
                       movies: _filtered,
                       onMovieTap: _openDetail,
-                      isSerie: _searchMode == SearchMode.series,
                     )
-                  : EmptyState(
-                      icon: _searchMode == SearchMode.movies
-                          ? Icons.movie_filter_outlined
-                          : Icons.live_tv_outlined,
-                      title: _searchMode == SearchMode.movies
-                          ? 'Recherchez un film'
-                          : 'Recherchez une série',
-                      subtitle: _searchMode == SearchMode.movies
-                          ? "Tapez le titre d'un film pour commencer"
-                          : "Tapez le titre d'une série pour commencer",
+                  : const EmptyState(
+                      icon: Icons.movie_filter_outlined,
+                      title: 'Recherchez un film ou une série',
+                      subtitle: "Tapez un titre pour commencer",
                     ),
         ),
       ],

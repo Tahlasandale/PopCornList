@@ -5,9 +5,8 @@ import '../models/tmdb_movie.dart';
 class MovieCard extends StatelessWidget {
   final TmdbMovie movie;
   final VoidCallback onTap;
-  final bool isSerie;
 
-  const MovieCard({super.key, required this.movie, required this.onTap, this.isSerie = false});
+  const MovieCard({super.key, required this.movie, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +21,7 @@ class MovieCard extends StatelessWidget {
               child: Stack(
                 children: [
                   _buildPoster(),
-                  if (isSerie)
+                  if (movie.isSerie)
                     Positioned(
                       top: 4,
                       right: 4,

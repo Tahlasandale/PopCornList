@@ -14,9 +14,8 @@ import 'movie_detail_screen.dart';
 class ListScreen extends StatefulWidget {
   final String status;
   final String title;
-  final MediaType? mediaType;
 
-  const ListScreen({super.key, required this.status, required this.title, this.mediaType});
+  const ListScreen({super.key, required this.status, required this.title});
 
   @override
   State<ListScreen> createState() => _ListScreenState();
@@ -27,9 +26,12 @@ class _ListScreenState extends State<ListScreen> {
   List<TmdbMovie> _movies = [];
   List<String> _selectedActors = [];
   List<int> _selectedGenres = [];
+  MediaType? _mediaFilter;
   bool _isLoading = true;
 
-  List<SortCriteria> _sortCriteria = [const SortCriteria(SortBy.addedDate, false)];
+  List<SortCriteria> _sortCriteria = [
+    const SortCriteria(SortBy.addedDate, false)
+  ];
 
   @override
   void initState() {
@@ -54,19 +56,22 @@ class _ListScreenState extends State<ListScreen> {
 
   Future<void> _loadMovies() async {
     setState(() => _isLoading = true);
-    final localMovies = DatabaseService.getByStatus(widget.status, type: widget.mediaType);
+    final localMovies = DatabaseService.getByStatus(widget.status);
 
-    final tmdbMovies = localMovies.map((local) => TmdbMovie(
-      id: local.tmdbId,
-      title: local.title,
-      posterPath: local.posterPath,
-      overview: '',
-      voteAverage: local.tmdbRating,
-      releaseDate: '',
-      genreIds: local.genreIds,
-      actors: local.actors,
-      addedDate: local.addedDate,
-    )).toList();
+    final tmdbMovies = localMovies
+        .map((local) => TmdbMovie(
+              id: local.tmdbId,
+              title: local.title,
+              posterPath: local.posterPath,
+              overview: '',
+              voteAverage: local.tmdbRating,
+              releaseDate: '',
+              genreIds: local.genreIds,
+              actors: local.actors,
+              addedDate: local.addedDate,
+              isSerie: local.type == MediaType.series,
+            ))
+        .toList();
 
     if (mounted) {
       setState(() {
@@ -77,13 +82,18 @@ class _ListScreenState extends State<ListScreen> {
   }
 
   List<TmdbMovie> get _filtered {
-    return FilmFilter.apply(
+    final filtered = FilmFilter.apply(
       movies: _movies,
       criteria: _sortCriteria,
       titleFilter: _searchController.text,
       selectedActors: _selectedActors,
       selectedGenres: _selectedGenres,
     );
+
+    if (_mediaFilter == null) return filtered;
+    return filtered
+        .where((m) => m.isSerie == (_mediaFilter == MediaType.series))
+        .toList();
   }
 
   Future<void> _openActorFilter() async {
@@ -116,7 +126,12 @@ class _ListScreenState extends State<ListScreen> {
   void _openDetail(TmdbMovie movie) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+      MaterialPageRoute(
+        builder: (_) => MovieDetailScreen(
+          movie: movie,
+          isSerie: movie.isSerie,
+        ),
+      ),
     );
     _loadMovies();
   }
@@ -144,8 +159,30 @@ class _ListScreenState extends State<ListScreen> {
         ),
         actions: [
           if (hasMovies)
+            PopupMenuButton<MediaType?>(
+              initialValue: _mediaFilter,
+              onSelected: (v) => setState(() => _mediaFilter = v),
+              icon: Icon(
+                _mediaFilter == null
+                    ? Icons.filter_list
+                    : (_mediaFilter == MediaType.movie
+                        ? Icons.movie_outlined
+                        : Icons.live_tv),
+                color: _mediaFilter != null ? popcorn : null,
+              ),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: null, child: Text('Tout')),
+                const PopupMenuItem(
+                    value: MediaType.movie, child: Text('Films')),
+                const PopupMenuItem(
+                    value: MediaType.series, child: Text('Séries')),
+              ],
+              tooltip: 'Filtrer par type',
+            ),
+          if (hasMovies)
             IconButton(
-              icon: Icon(Icons.category, color: hasGenreFilter ? popcorn : null),
+              icon:
+                  Icon(Icons.category, color: hasGenreFilter ? popcorn : null),
               onPressed: _openGenreFilter,
               tooltip: 'Filtrer par genre',
             ),
@@ -182,10 +219,12 @@ class _ListScreenState extends State<ListScreen> {
                           },
                         )
                       : null,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   filled: true,
                   fillColor: projecteur,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   isDense: true,
                 ),
               ),
@@ -202,13 +241,17 @@ class _ListScreenState extends State<ListScreen> {
                         ..._selectedActors.map((a) => Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: Chip(
-                                label: Text(a, style: const TextStyle(fontSize: 12, color: ecran)),
+                                label: Text(a,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: ecran)),
                                 backgroundColor: accent.withValues(alpha: 0.15),
-                                deleteIcon: Icon(Icons.close, size: 14, color: accent),
+                                deleteIcon:
+                                    Icon(Icons.close, size: 14, color: accent),
                                 onDeleted: () {
                                   setState(() => _selectedActors.remove(a));
                                 },
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
                                 visualDensity: VisualDensity.compact,
                               ),
                             )),
@@ -218,14 +261,17 @@ class _ListScreenState extends State<ListScreen> {
                           child: Chip(
                             label: Text(
                               '${_selectedGenres.length} genre${_selectedGenres.length > 1 ? 's' : ''}',
-                              style: const TextStyle(fontSize: 12, color: ecran),
+                              style:
+                                  const TextStyle(fontSize: 12, color: ecran),
                             ),
                             backgroundColor: popcorn.withValues(alpha: 0.15),
-                            deleteIcon: Icon(Icons.close, size: 14, color: popcorn),
+                            deleteIcon:
+                                Icon(Icons.close, size: 14, color: popcorn),
                             onDeleted: () {
                               setState(() => _selectedGenres.clear());
                             },
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                             visualDensity: VisualDensity.compact,
                           ),
                         ),
@@ -246,12 +292,13 @@ class _ListScreenState extends State<ListScreen> {
                         icon: widget.status == 'to_watch'
                             ? Icons.bookmark_border
                             : Icons.check_circle_outline,
-                        title: 'Aucun film',
+                        title: 'Aucun résultat',
                         subtitle: _buildEmptySubtitle(),
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(8),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
                           childAspectRatio: 0.55,
                           crossAxisSpacing: 8,
@@ -273,16 +320,21 @@ class _ListScreenState extends State<ListScreen> {
 
   String _buildEmptySubtitle() {
     if (_searchController.text.isNotEmpty) {
-      return 'Aucun film avec ce titre';
+      return 'Aucun titre correspondant';
     }
     if (_selectedActors.isNotEmpty) {
-      return 'Aucun film avec cet(te) acteur(trice)';
+      return 'Aucun(e) acteur(trice) correspondant(e)';
     }
     if (_selectedGenres.isNotEmpty) {
-      return 'Aucun film avec tous ces genres';
+      return 'Aucun genre correspondant';
+    }
+    if (_mediaFilter != null) {
+      return _mediaFilter == MediaType.movie
+          ? 'Aucun film trouvé'
+          : 'Aucune série trouvée';
     }
     return widget.status == 'to_watch'
-        ? 'Ajoutez des films depuis la recherche'
-        : 'Marquez des films comme "Vus"';
+        ? 'Ajoutez des films ou séries depuis la recherche'
+        : 'Marquez des éléments comme "Vus"';
   }
 }
