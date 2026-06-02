@@ -90,7 +90,7 @@ class DatabaseService {
   }
 
   static List<LocalMovie> getUnresolved() {
-    return getAll().where((m) => m.tmdbId == 0 && m.actors.isEmpty).toList();
+    return getAll().where((m) => m.tmdbId == 0).toList();
   }
 
   static int countUnresolved() {

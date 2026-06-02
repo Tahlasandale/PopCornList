@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../models/local_movie.dart';
 import 'tmdb_service.dart';
 import 'database_service.dart';
@@ -37,7 +38,8 @@ class MovieResolverService {
 
       await DatabaseService.updateMovie(movie);
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('resolveMovie erreur pour "${movie.title}": $e');
       return false;
     }
   }
