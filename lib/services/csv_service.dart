@@ -21,6 +21,27 @@ class ImportResult {
 }
 
 class CsvService {
+  /// Normalise un titre pour la comparaison : lowercase, accents → ascii,
+  /// suppression ponctuation, normalisation espaces.
+  static String _normalizeTitle(String title) {
+    const accents = {
+      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+      'à': 'a', 'â': 'a', 'ä': 'a',
+      'î': 'i', 'ï': 'i',
+      'ô': 'o', 'ö': 'o',
+      'ù': 'u', 'û': 'u', 'ü': 'u',
+      'ç': 'c',
+    };
+    var result = title.toLowerCase();
+    for (final e in accents.entries) {
+      result = result.replaceAll(e.key, e.value);
+    }
+    return result
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   static String _encodeList(List<String> items) => items.join('|');
 
   static List<String> _decodeList(String raw) {
@@ -65,6 +86,10 @@ class CsvService {
     int errors = 0;
     int unresolved = 0;
 
+    // Lookup des titres normalisés existants (fallback dedup quand tmdbId == 0)
+    final existingTitles =
+        DatabaseService.getAll().map((m) => _normalizeTitle(m.title)).toSet();
+
     final decoder = CsvDecoder();
     final rows = decoder.convert(content);
 
@@ -83,9 +108,19 @@ class CsvService {
           continue;
         }
 
+        // Vérification par TMDB ID (primaire)
         if (tmdbId != null && tmdbId > 0 && DatabaseService.exists(tmdbId)) {
           skipped++;
           continue;
+        }
+
+        // Fallback : vérification par titre normalisé (quand pas de TMDB ID)
+        if (tmdbId == null || tmdbId <= 0) {
+          final normalized = _normalizeTitle(title);
+          if (existingTitles.contains(normalized)) {
+            skipped++;
+            continue;
+          }
         }
 
         final resolvedTmdbId = (tmdbId != null && tmdbId > 0) ? tmdbId : 0;
