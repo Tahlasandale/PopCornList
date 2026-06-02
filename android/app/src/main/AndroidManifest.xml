@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- CRITIQUE: nécessaire pour toutes les requêtes réseau (TMDB, Mistral)
+         Sans cette permission, Android bloque DNS + HTTP → "No address associated with hostname" -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="PopCornList"
         android:name="${applicationName}"
